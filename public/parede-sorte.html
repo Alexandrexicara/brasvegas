@@ -20,7 +20,7 @@ h1{text-align:center;font-size:32px;color:var(--l);margin-bottom:20px;}
 .p.x25{background:rgba(255,50,0,.25);color:#ff5533;}
 .p.x50{background:rgba(255,0,0,.3);color:#ff4444;}
 .p.x100{background:rgba(212,175,55,.3);color:#ffd700;}
-.p.x500{background:rgba(57,255,20,.3);color:#39ff14;}
+.p.x500{background:rgba(57,255,20,.3);color:#39ff14}.p{cursor:pointer;user-select:none}.p.selecionado{outline:3px solid #fff;box-shadow:inset 0 0 0 3px #d4af37,0 0 16px #fff8}.p:focus{outline:3px solid #fff}
 .ctrl{margin-top:15px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .ctrl input{padding:10px;font-size:18px;width:120px;border-radius:6px;border:2px solid var(--dourado);background:#111;color:#fff;text-align:center;}
 .ctrl button{padding:12px 25px;font-size:18px;font-weight:bold;border-radius:8px;border:none;background:linear-gradient(180deg,var(--g),#00aa00);color:#000;cursor:pointer;}
@@ -44,63 +44,44 @@ h1{text-align:center;font-size:32px;color:var(--l);margin-bottom:20px;}
 </div>
 </div>
 <div class="ctrl">
-<div class="saldo">R$ <span id="s">1000,00</span></div>
+<div class="saldo">Créditos de treino: R$ <span id="s">1000,00</span></div>
 <input type="number" id="a" value="10" min="1">
 <button id="btn">LANÇAR!</button>
 </div>
 <div class="res" id="res"></div>
 </div>
 <script>
-let saldo=1000,ocupado=false;
+let saldo=1000,ocupado=false,alvo=null;
 const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
-const moeda=document.getElementById('moeda'),res=document.getElementById('res');
-const ps=document.querySelectorAll('.p');
-const pinos=document.getElementById('pinos');
-
-for(let l=0;l<9;l++){
-  let des=l%2?35:0;
-  for(let c=0;c<11;c++){
-    const p=document.createElement('div');p.className='pino';
-    p.style.left=(c*38+des)+'px';p.style.top=(l*45+20)+'px';
-    pinos.appendChild(p);
-  }
-}
-
+const moeda=document.getElementById('moeda'),res=document.getElementById('res'),jogo=document.querySelector('.jogo');
+const ps=Array.from(document.querySelectorAll('.p')),pinos=document.getElementById('pinos');
+function atualizarSaldo(){s.textContent=saldo.toFixed(2).replace('.',',')}
+ps.forEach((p,i)=>{p.setAttribute('role','button');p.setAttribute('tabindex','0');p.setAttribute('aria-label','Escolher alvo x'+p.dataset.m);function escolher(){if(ocupado)return;alvo=i;ps.forEach((x,n)=>x.classList.toggle('selecionado',n===i));res.textContent='Alvo escolhido: x'+p.dataset.m;res.style.color='#ffd700'}p.addEventListener('click',escolher);p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();escolher()}})});
+for(let l=0;l<9;l++){const des=l%2?35:0;for(let c=0;c<11;c++){const p=document.createElement('div');p.className='pino';p.style.left=(c*38+des)+'px';p.style.top=(l*45+20)+'px';pinos.appendChild(p)}}
 btn.addEventListener('click',jogar);
-
 function jogar(){
-  if(ocupado)return;
-  const val=Number(a.value),jogo=document.querySelector('.jogo');
-  if(!Number.isFinite(val)||val<=0||val>saldo){res.textContent='❌ Aposta inválida ou saldo insuficiente!';res.style.color='#f44';return;}
-  ocupado=true;btn.disabled=true;saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');
-  res.textContent='A moeda está descendo pela parede...';res.style.color='#fff';
-  const largura=jogo.clientWidth,raio=12,alturaFinal=410;
-  let x=largura/2,y=4,vx=(Math.random()-.5)*1.2,vy=1.2;
-  moeda.style.display='block';moeda.style.left=(x-raio)+'px';moeda.style.top=(y-raio)+'px';
-  const pinosFisicos=[];
-  for(let l=0;l<9;l++){const des=l%2?35:0;for(let col=0;col<11;col++)pinosFisicos.push({x:col*38+des+5,y:75+l*45,r:5});}
-  function frame(){
-    vy=Math.min(vy+.22,6);x+=vx;y+=vy;
-    if(x<raio){x=raio;vx=Math.abs(vx)*.72;}
-    if(x>largura-raio){x=largura-raio;vx=-Math.abs(vx)*.72;}
-    for(const p of pinosFisicos){
-      const dx=x-p.x,dy=y-p.y,dist=Math.hypot(dx,dy),min=raio+p.r;
-      if(dist>0&&dist<min){
-        const nx=dx/dist,ny=dy/dist;x=p.x+nx*(min+.2);y=p.y+ny*(min+.2);
-        const vn=vx*nx+vy*ny;
-        if(vn<0){vx=(vx-2*vn*nx)*.78;vy=(vy-2*vn*ny)*.72;vx+=((Math.random()-.5)*.32);}
-      }
-    }
-    moeda.style.left=(x-raio)+'px';moeda.style.top=(y-raio)+'px';
-    if(y<alturaFinal){requestAnimationFrame(frame);return;}
-    const idx=Math.max(0,Math.min(7,Math.floor(x/(largura/8))));
-    const premio=ps[idx],mult=Number(premio.dataset.m),ganho=val*mult;
-    if(mult>1)saldo+=ganho;
-    s.textContent=saldo.toFixed(2).replace('.',',');
-    res.textContent=mult===500?'🏆 JACKPOT R$'+ganho.toFixed(2)+'!':'Resultado x'+mult+' — R$'+ganho.toFixed(2);
-    res.style.color=mult>=50?'#39ff14':'#ffd700';
-    moeda.style.display='none';ocupado=false;btn.disabled=false;
-  }
-  requestAnimationFrame(frame);
+ if(ocupado)return;
+ if(alvo===null){res.textContent='Escolha primeiro a casa de prêmio que deseja acertar.';res.style.color='#ffb0a0';return}
+ const val=Number(a.value);
+ if(!Number.isFinite(val)||val<=0||val>saldo){res.textContent='Aposta inválida ou créditos de treino insuficientes.';res.style.color='#f44';return}
+ ocupado=true;btn.disabled=true;saldo-=val;atualizarSaldo();res.textContent='A moeda está descendo. Só vale o alvo que você escolheu.';res.style.color='#fff';
+ const largura=jogo.clientWidth,raio=12,alturaFinal=432;
+ let x=raio+Math.random()*(largura-raio*2),y=18,vx=(Math.random()-.5)*2.4,vy=1.2;
+ moeda.style.display='block';moeda.style.left=(x-raio)+'px';moeda.style.top=(y-raio)+'px';
+ const fisicos=[];
+ for(let l=0;l<9;l++){const des=l%2?35:0;for(let col=0;col<11;col++)fisicos.push({x:col*38+des+5,y:70+l*45,r:5})}
+ function frame(){
+  vy=Math.min(vy+.22,6);x+=vx;y+=vy;
+  if(x<raio){x=raio;vx=Math.abs(vx)*.72}
+  if(x>largura-raio){x=largura-raio;vx=-Math.abs(vx)*.72}
+  for(const p of fisicos){const dx=x-p.x,dy=y-p.y,dist=Math.hypot(dx,dy),min=raio+p.r;if(dist>0&&dist<min){const nx=dx/dist,ny=dy/dist;x=p.x+nx*(min+.2);y=p.y+ny*(min+.2);const vn=vx*nx+vy*ny;if(vn<0){vx=(vx-2*vn*nx)*.78;vy=(vy-2*vn*ny)*.72;vx+=(Math.random()-.5)*.32;window.BrasVegasAudio?.play('plinko')}}}
+  moeda.style.left=(x-raio)+'px';moeda.style.top=(y-raio)+'px';
+  if(y<alturaFinal){requestAnimationFrame(frame);return}
+  const idx=Math.max(0,Math.min(7,Math.floor(x/(largura/8)))),multiplicador=Number(ps[idx].dataset.m),acertou=idx===alvo;
+  if(acertou){const premio=val*multiplicador;saldo+=premio;res.textContent='🎯 ACERTOU O ALVO x'+multiplicador+'! Crédito de treino: R$ '+premio.toFixed(2).replace('.',',')}
+  else{res.textContent='A moeda caiu em x'+multiplicador+'. Seu alvo era x'+ps[alvo].dataset.m+'. Você não ganhou esta rodada.'}
+  res.style.color=acertou?'#39ff14':'#ffd700';atualizarSaldo();moeda.style.display='none';ocupado=false;btn.disabled=false;
+ }
+ requestAnimationFrame(frame);
 }
 </script><script src="js/brasvegas-audio.js"></script></body></html>
