@@ -410,6 +410,33 @@ app.post('/api/poquer/:apostaId/trocar',auth,async(req,res)=>{
   finally{client.release();}
 });
 
+app.get('/api/sinuca/:rodadaId/estado',auth,async(req,res)=>{
+  try{
+    const q=await pool.query("SELECT resultado FROM rodadas WHERE id=$1 AND status='aberta'",[req.params.rodadaId]);
+    if(!q.rows[0])return res.status(404).json({erro:'Mesa não encontrada ou já encerrada.'});
+    res.json(estadoSinucaPublico(q.rows[0].resultado,req.usuarioId));
+  }catch(e){res.status(500).json({erro:'Não foi possível consultar a mesa.'});}
+});
+
+app.post('/api/sinuca/:rodadaId/tacada',auth,async(req,res)=>{
+  const angle=Number(req.body?.angle),power=Number(req.body?.power);
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const q=await client.query("SELECT id,resultado,status FROM rodadas WHERE id=$1 FOR UPDATE",[req.params.rodadaId]);
+    if(!q.rows[0]||q.rows[0].status!=='aberta')throw new Error('Mesa não encontrada ou já encerrada.');
+    const state=q.rows[0].resultado;
+    if(!state||state.status!=='playing')throw new Error('A mesa ainda está aguardando jogadores.');
+    const player=state.players.find(p=>p.userId===req.usuarioId);
+    if(!player)throw new Error('Você não está inscrito nesta partida.');
+    const next=gameEngine.simulateBilliardsShot(state,player.betId,angle,power);
+    await client.query('UPDATE rodadas SET resultado=$1 WHERE id=$2',[next,req.params.rodadaId]);
+    await client.query('COMMIT');
+    res.json({sucesso:true,...estadoSinucaPublico(next,req.usuarioId)});
+  }catch(e){await client.query('ROLLBACK');res.status(400).json({erro:e.message||'Tacada recusada.'});}
+  finally{client.release();}
+});
+
 async function liquidarRodadaPorId(rodadaId) {
   const client=await pool.connect();
   try {
