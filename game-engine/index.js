@@ -173,6 +173,27 @@ function playBlackjack(actions=[]) {
   else if(playerTotal===dealerTotal) outcome='push';
   return {player,dealer,playerTotal,dealerTotal,outcome};
 }
+
+function validateBetSelection(code,selection) {
+  if(!selection||typeof selection!=='object'||Array.isArray(selection)) return false;
+  const type=selection.type||selection.tipo;
+  if(code==='roleta') {
+    if(['red','black','green','vermelho','preto','verde','even','odd','par','impar','low','high'].includes(type)) return true;
+    if(type==='number'||type==='numero') {const n=Number(selection.number??selection.numero);return Number.isInteger(n)&&n>=0&&n<=36;}
+    if(type==='dozen'||type==='column') {const n=Number(selection.value);return Number.isInteger(n)&&n>=1&&n<=3;}
+    return false;
+  }
+  if(code==='bacara') return ['player','banker','tie','jogador','banco','empate'].includes(type);
+  if(code==='craps') return ['pass','dont_pass','passar','naopassar'].includes(type);
+  if(code==='dados') return (type==='sum'&&Number.isInteger(Number(selection.value))&&selection.value>=2&&selection.value<=12) ||
+    (type==='total_over'&&Number.isInteger(Number(selection.value))&&selection.value>=2&&selection.value<=11) ||
+    (type==='total_under'&&Number.isInteger(Number(selection.value))&&selection.value>=3&&selection.value<=12) || type==='doubles';
+  if(code==='blackjack') return Array.isArray(selection.actions)&&selection.actions.length<=10&&selection.actions.every(a=>a==='hit'||a==='stand');
+  if(code==='poquer') return type==='draw'||type==='mao'||type==='hand';
+  if(code==='caca-niqueis'||code==='frutas'||code==='parede-sorte') return type==='spin'||type==='girar'||type==='drop'||type==='lancar';
+  return false;
+}
+
 function resolveRound(code,bets) {
   if(!Array.isArray(bets)||bets.length===0) throw new Error('Rodada sem apostas.');
   const byBetId={}; let result; let winnerIds=[];
@@ -206,4 +227,4 @@ function resolveRound(code,bets) {
   return {result,winnerIds,byBetId};
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,resolveRound};
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveRound};
