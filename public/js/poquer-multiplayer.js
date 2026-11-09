@@ -35,7 +35,7 @@
    const current=await api('/jogos/poquer/rodada-atual');
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:{type:'draw'}})});
    betId=bet.apostaId;roundId=current.rodada.id;hand=bet.gameState.hand;status=bet.gameState.status;
-   render();result.textContent='Mão distribuída pelo servidor. Selecione as cartas que deseja trocar.';
+   render();result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Mão distribuída pelo servidor. Selecione as cartas que deseja trocar.';
    await refreshBalance();drawBtn.disabled=false;
   }catch(e){result.textContent=e.message;newBtn.disabled=false;}
   finally{busy=false;}
@@ -56,7 +56,7 @@
    }
    if(final){
     const detail=final.resultado?.byBetId?.[betId];
-    result.textContent=(final.aposta?.status==='paga'?'VOCÊ VENCEU A MESA · ':'RODADA ENCERRADA · ')+(detail?.rank?.name||'mão apurada')+' · Prêmio R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+    result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ VENCEU A MESA · ':'RODADA ENCERRADA · ')+(detail?.rank?.name||'mão apurada')+' · Prêmio R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
     await refreshBalance();newBtn.disabled=false;
    }else result.textContent+=' Resultado será atualizado quando a rodada encerrar.';
   }catch(e){result.textContent=e.message;drawBtn.disabled=false;newBtn.disabled=false;}
