@@ -15,3 +15,12 @@ test('compromisso criptográfico pode ser verificado',()=>{const c=g.makeFairCom
 test('caça-níqueis respeita a tabela de pagamento',()=>{const r=g.slotResult(['X'],{X:10});assert.deepEqual(r,{symbols:['X','X','X'],multiplier:10});});
 test('parede da sorte devolve saída válida',()=>{const r=g.wallResult([1,2,5,10,25,50,100,500]);assert.ok(r.slot>=0&&r.slot<8);assert.equal(r.multiplier,[1,2,5,10,25,50,100,500][r.slot]);});
 test('blackjack e bacará distribuem mãos válidas',()=>{const b=g.dealBlackjack(),c=g.dealBaccarat();assert.equal(b.player.length,2);assert.equal(c.player.length>=2,true);assert.ok(c.playerTotal>=0&&c.playerTotal<=9);});
+
+test('bacará aplica corretamente a regra de compra do banqueiro',()=>{
+ assert.equal(g.bankerShouldDraw(6,null),false);
+ assert.equal(g.bankerShouldDraw(5,null),true);
+ assert.equal(g.bankerShouldDraw(3,8),false);
+ assert.equal(g.bankerShouldDraw(3,7),true);
+ assert.equal(g.bankerShouldDraw(6,6),true);
+ assert.equal(g.bankerShouldDraw(6,5),false);
+});
