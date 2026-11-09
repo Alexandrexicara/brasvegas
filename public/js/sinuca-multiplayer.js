@@ -80,7 +80,7 @@
  async function resume(){
   if(!token){message.textContent='Faça login para jogar sinuca multiplayer.';joinBtn.disabled=true;return;}
   try{
-   const current=await api('/jogos/sinuca/rodada-atual');roundId=current.rodada.id;
+   const current=await api('/jogos/sinuca/rodada-atual');roundId=current.rodada.id;document.getElementById('modo-sinuca').textContent=current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário':'MODO REAL · saldo monetário';
    state=await api('/sinuca/'+roundId+'/estado');myBetId=state.myBetId||null;
    if(myBetId){if(current.modoJogo==='treino')message.textContent='MODO TREINO · fichas virtuais sem valor monetário. ';joinBtn.disabled=true;format.disabled=true;amount.disabled=true;describe();render();refresh();}
    else{describe();render();}
