@@ -22,7 +22,7 @@ const pool = new Pool({
 });
 
 // Testa conexão
-pool.connect()
+pool.query('SELECT 1')
   .then(() => console.log('✅ CONECTADO AO POSTGRESQL COM SUCESSO!'))
   .catch(e => console.log('⚠️  SEM CONEXÃO — Crie o banco e configure .env:', e.message));
 
