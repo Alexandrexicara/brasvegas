@@ -26,6 +26,29 @@
   if(code==='parede-sorte')return {type:'drop'};
   return null;
  };
+ const renderVisuals=(gameCode,data)=>{
+  if(!data)return;
+  if(gameCode==='caca-niqueis'||gameCode==='frutas'){
+   ['r1','r2','r3'].forEach((id,i)=>{const el=document.getElementById(id);if(el)el.textContent=data.symbols?.[i]||'—';});
+  }
+  if(gameCode==='craps'||gameCode==='dados'){
+   const dice=data.rolls?.[data.rolls.length-1]||data.dice;
+   if(dice){const one=document.getElementById('d1'),two=document.getElementById('d2');if(one)one.textContent=dice[0];if(two)two.textContent=dice[1];}
+   const phase=document.getElementById('fase');if(phase)phase.textContent=data.point?'Ponto '+data.point:'Resultado dos dados';
+  }
+  if(gameCode==='bacara'){
+   const cards=(arr)=>{const box=document.createDocumentFragment();(arr||[]).forEach(card=>{const el=document.createElement('div');el.className='carta';el.textContent=card.rank+card.suit;box.appendChild(el);});return box;};
+   const player=document.getElementById('jogCartas'),banker=document.getElementById('banCartas');
+   if(player){player.innerHTML='';player.appendChild(cards(data.player));}
+   if(banker){banker.innerHTML='';banker.appendChild(cards(data.banker));}
+   const pp=document.getElementById('jogPts'),bp=document.getElementById('banPts');
+   if(pp)pp.textContent=String(data.playerTotal??0);if(bp)bp.textContent=String(data.bankerTotal??0);
+  }
+  if(gameCode==='parede-sorte'){
+   const coin=document.getElementById('moeda');
+   if(coin&&Number.isInteger(data.slot)){coin.style.display='block';coin.style.left=((data.slot+.5)/8*100)+'%';coin.style.top='440px';coin.style.transform='translate(-50%,-50%)';}
+  }
+ };
  const renderState=(gameCode,perBet)=>{
   if(!perBet)return 'Resultado recebido.';
   if(gameCode==='bacara')return 'Jogador '+perBet.playerTotal+' × Banco '+perBet.bankerTotal+' — '+perBet.winner;
@@ -58,6 +81,7 @@
    }
    if(!final){result.textContent='Aposta confirmada. Resultado será atualizado quando a rodada encerrar.';return;}
    const detail=final.resultado?.byBetId?.[bet.apostaId]||final.resultado?.result?.porAposta?.[bet.apostaId]||final.resultado?.result;
+   renderVisuals(code,detail);
    const won=final.aposta?.status==='paga';
    result.textContent=(current.modoJogo==='treino'?'MODO TREINO · ':'')+(won?'VOCÊ GANHOU · ':'VOCÊ NÃO GANHOU · ')+renderState(code,detail)+' · Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
    await carregarSaldo();
