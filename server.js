@@ -173,6 +173,13 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
       [wallet.rows[0].id,req.usuarioId,valor,antes,antes-valor,reservado,reservado+valor,bet.rows[0].id, 'bet:'+bet.rows[0].id]
     );
     await client.query('INSERT INTO comissoes_plataforma(rodada_id,aposta_id,valor,percentual) VALUES($1,$2,$3,10)', [req.params.id,bet.rows[0].id,taxa]);
+    const contaAntes = await client.query('SELECT saldo_comissoes FROM carteira_plataforma WHERE id=1 FOR UPDATE');
+    const saldoComissaoAntes = Number(contaAntes.rows[0]?.saldo_comissoes || 0);
+    const contaDepois = await client.query('UPDATE carteira_plataforma SET saldo_comissoes=saldo_comissoes+$1,atualizado_em=NOW() WHERE id=1 RETURNING saldo_comissoes', [taxa]);
+    await client.query(
+      "INSERT INTO movimentos_plataforma(tipo,aposta_id,valor,saldo_antes,saldo_depois,descricao) VALUES('comissao_aposta',$1,$2,$3,$4,'Comissão de 10% da aposta')",
+      [bet.rows[0].id,taxa,saldoComissaoAntes,Number(contaDepois.rows[0].saldo_comissoes)]
+    );
     await client.query('COMMIT');
     res.status(201).json({ sucesso:true, apostaId:bet.rows[0].id, valor, taxaPercentual:10, valorReservadoParaPremio:premio, mensagem:'Aposta registrada na rodada compartilhada.' });
   } catch (e) {
