@@ -534,6 +534,11 @@ app.get('/api/admin/financeiro', async (req, res) => {
 app.post('/api/deposito', auth, (_req, res) => res.status(410).json({ erro:'Crédito direto desativado. As fichas só serão liberadas após confirmação do Pix pelo servidor.' }));
 app.post('/api/roleta/apostar', auth, (_req, res) => res.status(410).json({ erro:'A roleta agora utiliza rodadas compartilhadas. Atualize o aplicativo para apostar na rodada atual.' }));
 
+app.get('/api/health',async(_req,res)=>{
+  try{await pool.query('SELECT 1');res.json({status:'ok',database:'connected',mode:APOSTAS_REAIS_HABILITADAS?'real':'treino'});}
+  catch(e){res.status(503).json({status:'error',database:'unavailable'});}
+});
+
 app.get('/', (_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 app.use((err,_req,res,_next)=>{ console.error(err); res.status(500).json({erro:'Erro interno.'}); });
 pool.query('SELECT 1').then(()=>console.log('PostgreSQL/Neon conectado')).catch(e=>console.error('Falha Neon:',e.message));
