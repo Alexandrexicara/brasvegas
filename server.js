@@ -298,7 +298,7 @@ app.get('/api/rodadas/:id',auth,async(req,res)=>{
     );
     if(!q.rows[0])return res.status(404).json({erro:'Rodada não encontrada.'});
     const row=q.rows[0];
-    res.json({id:row.id,numero:row.numero,status:row.status,resultado:row.resultado,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
+    res.json({id:row.id,numero:row.numero,status:row.status,resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
   }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar a rodada.'});}
 });
 
@@ -325,7 +325,14 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
     );
     let gameState=null;
     if(rodada.rows[0].codigo==='blackjack') gameState=gameEngine.startBlackjackGame();
-    if(rodada.rows[0].codigo==='poquer') gameState=gameEngine.startPokerGame();
+    if(rodada.rows[0].codigo==='poquer') {
+      const count=await client.query('SELECT COUNT(*)::int AS total FROM apostas WHERE rodada_id=$1 AND status=\'reservada\'',[req.params.id]);
+      if(count.rows[0].total>5)throw new Error('Mesa de pôquer completa. Máximo de 5 jogadores por rodada.');
+      const roundState=await client.query('SELECT resultado FROM rodadas WHERE id=$1 FOR UPDATE',[req.params.id]);
+      const shoe=Array.isArray(roundState.rows[0].resultado?.shoe)?roundState.rows[0].resultado.shoe:gameEngine.shuffle(gameEngine.deck());
+      gameState=gameEngine.startPokerGame(shoe);
+      await client.query('UPDATE rodadas SET resultado=$1 WHERE id=$2',[{shoe:gameState.deck},req.params.id]);
+    }
     if(gameState){selecao={...selecao,...gameState};await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[selecao,bet.rows[0].id]);}
     await client.query('UPDATE rodadas SET total_apostado=total_apostado+$1,taxa_total=taxa_total+$2,premio_disponivel=premio_disponivel+$3 WHERE id=$4', [valor,taxa,premio,req.params.id]);
     await client.query(
@@ -370,10 +377,13 @@ app.post('/api/poquer/:apostaId/trocar',auth,async(req,res)=>{
   const client=await pool.connect();
   try{
     await client.query('BEGIN');
-    const q=await client.query("SELECT a.id,a.selecao FROM apostas a JOIN rodadas r ON r.id=a.rodada_id JOIN jogos j ON j.id=r.jogo_id WHERE a.id=$1 AND a.usuario_id=$2 AND a.status='reservada' AND r.status='aberta' AND j.codigo='poquer' FOR UPDATE OF a",[req.params.apostaId,req.usuarioId]);
+    const q=await client.query("SELECT a.id,a.rodada_id,a.selecao,r.resultado FROM apostas a JOIN rodadas r ON r.id=a.rodada_id JOIN jogos j ON j.id=r.jogo_id WHERE a.id=$1 AND a.usuario_id=$2 AND a.status='reservada' AND r.status='aberta' AND j.codigo='poquer' FOR UPDATE OF a,r",[req.params.apostaId,req.usuarioId]);
     if(!q.rows[0])throw new Error('Mão de pôquer não encontrada ou já encerrada.');
-    const state=gameEngine.drawPokerCards(q.rows[0].selecao,indices||[]);
+    const shoe=Array.isArray(q.rows[0].resultado?.shoe)?q.rows[0].resultado.shoe:[];
+    const draw=gameEngine.drawPokerCards(q.rows[0].selecao,indices||[],shoe);
+    const state=draw.state;
     await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[{...q.rows[0].selecao,...state},req.params.apostaId]);
+    await client.query('UPDATE rodadas SET resultado=$1 WHERE id=$2',[{shoe:draw.remainingDeck},q.rows[0].rodada_id]);
     await client.query('COMMIT');
     res.json({sucesso:true,gameState:selecaoPublica(state)});
   }catch(e){await client.query('ROLLBACK');res.status(400).json({erro:e.message||'Não foi possível trocar as cartas.'});}
