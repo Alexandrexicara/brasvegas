@@ -209,6 +209,23 @@ app.get('/api/usuario', auth, async (req, res) => {
   res.json({id:rows[0].id,nome_completo:rows[0].nome_completo,email:rows[0].email,saldo:Number(rows[0].saldo_disponivel),saldoReservado:Number(rows[0].saldo_reservado),saldoTreino:Number(rows[0].saldo_treino),modoJogo:APOSTAS_REAIS_HABILITADAS?'real':'treino'});
 });
 
+app.post('/api/treino/recarregar',auth,async(req,res)=>{
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const q=await client.query('SELECT saldo_treino FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[req.usuarioId]);
+    if(!q.rows[0])throw new Error('Carteira não encontrada.');
+    const antes=Number(q.rows[0].saldo_treino);
+    if(antes>=10)throw new Error('A recarga de treino só fica disponível quando o saldo estiver abaixo de R$ 10,00.');
+    const depois=1000;
+    await client.query('UPDATE carteiras SET saldo_treino=$1,updated_at=NOW() WHERE usuario_id=$2',[depois,req.usuarioId]);
+    await client.query("INSERT INTO lancamentos_treino(usuario_id,tipo,valor,saldo_antes,saldo_depois,chave_idempotencia,descricao) VALUES($1,'ajuste',$2,$3,$4,$5,'Recarga gratuita de fichas de demonstração')",[req.usuarioId,depois-antes,antes,depois,'treino:refill:'+req.usuarioId+':'+Date.now()]);
+    await client.query('COMMIT');
+    res.json({sucesso:true,saldoTreino:depois,mensagem:'Saldo de treino recarregado. Não possui valor monetário.'});
+  }catch(e){await client.query('ROLLBACK');res.status(400).json({erro:e.message||'Não foi possível recarregar o saldo de treino.'});}
+  finally{client.release();}
+});
+
 app.post('/api/pix/cobrancas', auth, async (req, res) => {
   if (!APOSTAS_REAIS_HABILITADAS) return res.status(503).json({ erro:'Compra de fichas com dinheiro real permanece bloqueada até liberação jurídica e bancária.' });
   const valor = dinheiro(req.body?.valor);
