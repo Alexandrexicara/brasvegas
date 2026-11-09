@@ -114,10 +114,11 @@ async function girarRoleta() {
       else{
         const ganhou=rodadaFinal.aposta?.status==='paga';
         const premio=Number(rodadaFinal.aposta?.premioRecebido||0);
-        const unidade=rodadaFinal.modo==='treino'?'fichas':'R
-        resEl.innerHTML=`<p><strong>${ganhou?'VOCÊ GANHOU':'RODADA ENCERRADA'}</strong></p>
-          <p>Resultado: ${sorteio.number??JSON.stringify(sorteio)}</p>
-          <p>Seu prêmio: R$ ${premio.toFixed(2)}</p>`;
+        const unidade=rodadaFinal.modo==='treino'?'fichas':'R$';
+        const sorteio=rodadaFinal.resultado?.result||{};
+        resEl.innerHTML='<p><strong>'+(ganhou?'VOCÊ GANHOU':'RODADA ENCERRADA')+'</strong></p>'+
+          '<p>Resultado: '+(sorteio.number??JSON.stringify(sorteio))+'</p>'+
+          '<p>Seu prêmio: '+unidade+' '+premio.toFixed(2)+'</p>';
       }
     }
     await carregarSaldo();
