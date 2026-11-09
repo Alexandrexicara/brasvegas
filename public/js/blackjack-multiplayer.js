@@ -80,7 +80,7 @@
   }
   if(final){
    const detail=final.resultado?.byBetId?.[betId];
-   result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ GANHOU · ':'RODADA ENCERRADA · ')+(detail?.outcome||'resultado apurado')+' · Prêmio R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+   result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ GANHOU · ':'RODADA ENCERRADA · ')+(detail?.outcome||'resultado apurado')+' · Prêmio '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
    await refreshBalance();
   }else result.textContent+=' Resultado da rodada será atualizado quando encerrar.';
   newBtn.disabled=false;
