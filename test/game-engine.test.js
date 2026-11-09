@@ -1,0 +1,17 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const g=require('../game-engine');
+test('baralho tem 52 cartas únicas',()=>{const d=g.deck();assert.equal(d.length,52);assert.equal(new Set(d.map(c=>c.rank+c.suit)).size,52);});
+test('embaralhamento preserva todas as cartas',()=>{const d=g.shuffle(g.deck());assert.equal(d.length,52);assert.equal(new Set(d.map(c=>c.rank+c.suit)).size,52);});
+test('blackjack trata ás como 1 quando estoura',()=>assert.equal(g.blackjackTotal([{rank:'A'},{rank:'K'},{rank:'9'}]),20));
+test('bacará calcula módulo dez',()=>assert.equal(g.baccaratTotal([{rank:'K'},{rank:'9'},{rank:'7'}]),6));
+test('pôquer reconhece sequência baixa A-2-3-4-5',()=>assert.equal(g.pokerRank([{rank:'A',suit:'♠'},{rank:'2',suit:'♥'},{rank:'3',suit:'♦'},{rank:'4',suit:'♣'},{rank:'5',suit:'♠'}]).name,'straight'));
+test('pôquer compara mãos e desempata',()=>assert.equal(g.comparePoker([{rank:'A',suit:'♠'},{rank:'A',suit:'♥'},{rank:'K',suit:'♦'},{rank:'8',suit:'♣'},{rank:'2',suit:'♠'}],[{rank:'K',suit:'♠'},{rank:'K',suit:'♥'},{rank:'Q',suit:'♦'},{rank:'8',suit:'♣'},{rank:'2',suit:'♠'}]),1));
+test('roleta sempre retorna 0-36 e cor consistente',()=>{for(let i=0;i<500;i++){const r=g.rouletteResult();assert.ok(r.number>=0&&r.number<=36);assert.equal(r.color,r.number===0?'green':new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]).has(r.number)?'red':'black');}});
+test('dados somam os dois valores',()=>{for(let i=0;i<100;i++){const r=g.diceResult();assert.equal(r.sum,r.dice[0]+r.dice[1]);assert.ok(r.dice.every(n=>n>=1&&n<=6));}});
+test('aposta da roleta valida tipo e limites',()=>{assert.equal(g.validateRouletteBet({type:'number',number:37},{number:37,color:'black'}),false);assert.equal(g.validateRouletteBet({type:'red'},{number:1,color:'red'}),true);});
+test('compromisso criptográfico pode ser verificado',()=>{const c=g.makeFairCommitment('seed-teste');assert.equal(g.verifyFairCommitment('seed-teste',c.commitment),true);assert.equal(g.verifyFairCommitment('seed-falso',c.commitment),false);});
+test('caça-níqueis respeita a tabela de pagamento',()=>{const r=g.slotResult(['X'],{X:10});assert.deepEqual(r,{symbols:['X','X','X'],multiplier:10});});
+test('parede da sorte devolve saída válida',()=>{const r=g.wallResult([1,2,5,10,25,50,100,500]);assert.ok(r.slot>=0&&r.slot<8);assert.equal(r.multiplier,[1,2,5,10,25,50,100,500][r.slot]);});
+test('blackjack e bacará distribuem mãos válidas',()=>{const b=g.dealBlackjack(),c=g.dealBaccarat();assert.equal(b.player.length,2);assert.equal(c.player.length>=2,true);assert.ok(c.playerTotal>=0&&c.playerTotal<=9);});
