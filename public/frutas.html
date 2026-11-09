@@ -29,18 +29,6 @@ h1{text-align:center;font-size:32px;color:var(--dourado);margin-bottom:20px;}
 <div class="painel"><div class="bloco"><label>SALDO</label><span id="s">1000,00</span></div><div class="bloco"><label>APOSTA</label><input type="number" id="a" value="10" min="1"></div></div>
 <button class="btn-girar" id="btn">🎰 GIRAR!</button>
 <div class="res" id="res"></div>
-<div class="pg">
-<div>🍎🍎🍎 = x20</div><div>🍋🍋🍋 = x15</div>
-<div>🍇🍇🍇 = x10</div><div>🍊🍊🍊 = x8</div>
-<div>🍓🍓🍓 = x5</div><div>⭐⭐⭐ = x50</div>
+<div class="pg"><div>Três símbolos iguais: vitória da rodada</div><div>Os vencedores dividem o prêmio compartilhado proporcionalmente às apostas</div></div></div>
 </div>
-</div>
-<script>
-const sim=['🍎','🍋','🍇','🍊','🍓','⭐'];
-const r1=document.getElementById('r1'),r2=document.getElementById('r2'),r3=document.getElementById('r3');
-const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn'),res=document.getElementById('res');
-let saldo=1000,girando=false;
-function sorteio(){return sim[Math.floor(Math.random()*sim.length)];}
-async function girar(){if(girando)return;const ap=parseFloat(a.value);if(ap<=0||ap>saldo){res.textContent='❌ Inválido!';res.style.color='#f44';return;}girando=true;btn.disabled=true;res.textContent='';saldo-=ap;s.textContent=saldo.toFixed(2).replace('.',',');r1.classList.add('girando');r2.classList.add('girando');r3.classList.add('girando');for(let i=0;i<15;i++){r1.textContent=sorteio();await new Promise(t=>setTimeout(t,40));}r1.classList.remove('girando');for(let i=0;i<20;i++){r2.textContent=sorteio();await new Promise(t=>setTimeout(t,40));}r2.classList.remove('girando');for(let i=0;i<25;i++){r3.textContent=sorteio();await new Promise(t=>setTimeout(t,40));}r3.classList.remove('girando');const v1=r1.textContent,v2=r2.textContent,v3=r3.textContent;let m=0;if(v1===v2&&v2===v3){if(v1==='⭐')m=50;else if(v1==='🍎')m=20;else if(v1==='🍋')m=15;else if(v1==='🍇')m=10;else if(v1==='🍊')m=8;else if(v1==='🍓')m=5;}if(m>0){saldo+=ap*m;res.textContent=`✅ TRIPLO ${v1}! +R$${(ap*m).toFixed(2)}`;res.style.color='#39ff14';}else{res.textContent='Tente de novo!';res.style.color='#ffd700';}s.textContent=saldo.toFixed(2).replace('.',',');girando=false;btn.disabled=false;}
-btn.addEventListener('click',girar);
-</script></body></html>
+<script src="js/multiplayer-game.js"></script></body></html>

@@ -36,14 +36,4 @@ h1{text-align:center;font-size:32px;color:var(--dourado);margin-bottom:20px;}
 </div>
 <div class="res" id="res"></div>
 </div>
-<script>
-let saldo=1000,ponto=null,girando=false,tipo='passar';
-const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
-const d1=document.getElementById('d1'),d2=document.getElementById('d2');
-const fase=document.getElementById('fase'),res=document.getElementById('res');
-const apPassar=document.getElementById('apPassar'),apNaoPassar=document.getElementById('apNaoPassar');
-apPassar.addEventListener('click',()=>{tipo='passar';apPassar.classList.add('ativa');apNaoPassar.classList.remove('ativa');});
-apNaoPassar.addEventListener('click',()=>{tipo='naopassar';apNaoPassar.classList.add('ativa');apPassar.classList.remove('ativa');});
-function rolar(){return Math.floor(Math.random()*6)+1;}
-btn.addEventListener('click',async ()=>{if(girando)return;const val=parseFloat(a.value);if(val<=0||val>saldo){res.textContent='❌ Aposta inválida!';res.style.color='#f44';return;}girando=true;btn.disabled=true;res.textContent='';saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');d1.classList.add('girando');d2.classList.add('girando');for(let i=0;i<15;i++){d1.textContent=rolar();d2.textContent=rolar();await new Promise(t=>setTimeout(t,60));}d1.classList.remove('girando');d2.classList.remove('girando');const v1=parseInt(d1.textContent),v2=parseInt(d2.textContent),soma=v1+v2;if(!ponto){if(tipo==='passar'){if(soma===7||soma===11){saldo+=val*2;res.textContent='✅ GANHOU! +R$'+(val*1).toFixed(2);res.style.color='#39ff14';}else if(soma===2||soma===3||soma===12){res.textContent='❌ PERDEU!';res.style.color='#ff4444';}else{ponto=soma;fase.textContent='PONTO: '+ponto;res.textContent='Jogue de novo!';}}else{if(soma===2||soma===3){saldo+=val*2;res.textContent='✅ GANHOU! +R$'+(val*1).toFixed(2);res.style.color='#39ff14';}else if(soma===7||soma===11){res.textContent='❌ PERDEU!';res.style.color='#ff4444';}else if(soma===12){saldo+=val;res.textContent='🤝 Empate — Devolvido!';res.style.color='#ffd700';}else{ponto=soma;fase.textContent='PONTO: '+ponto;res.textContent='Tire 7 = ganha | Tire '+ponto+' = perde';}}}else{if(tipo==='passar'){if(soma===ponto){saldo+=val*2;res.textContent='✅ REPETIU O PONTO! GANHOU!';ponto=null;fase.textContent='Jogada de Saída';}else if(soma===7){res.textContent='❌ SAIU 7! PERDEU!';ponto=null;fase.textContent='Jogada de Saída';}}else{if(soma===7){saldo+=val*2;res.textContent='✅ SAIU 7! GANHOU!';ponto=null;fase.textContent='Jogada de Saída';}else if(soma===ponto){res.textContent='❌ REPETIU O PONTO! PERDEU!';ponto=null;fase.textContent='Jogada de Saída';}}}s.textContent=saldo.toFixed(2).replace('.',',');girando=false;btn.disabled=false;});
-</script></body></html>
+<script src="js/multiplayer-game.js"></script></body></html>

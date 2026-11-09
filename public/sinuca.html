@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sinuca / Bilhar Multiplayer — BrasVegas</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07130e;color:#f5f5f5;font-family:Arial,sans-serif;padding:16px}
+header,main{max-width:1050px;margin:0 auto}header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+a{color:#f4d36b;text-decoration:none}main{margin-top:18px;background:#10251b;border:1px solid #b18b35;border-radius:16px;padding:16px}
+h1{margin:4px 0;color:#f4d36b}p{color:#c8d5ce}
+.controls{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:14px 0}
+button,select,input{padding:10px 13px;border-radius:8px;border:1px solid #bd9a43;background:#142c20;color:white}
+button{background:#bd8d25;color:#171006;font-weight:bold;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+canvas{display:block;width:100%;height:auto;border-radius:12px;background:#07532e;touch-action:none}
+#placar{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+.player{padding:10px;border:1px solid #536e5d;border-radius:9px;background:#0a1a12}.player.turn{border:2px solid #f4d36b}
+#mensagem{min-height:34px;color:#f4d36b;font-weight:bold;margin-top:12px}
+small{color:#aabbb0}
+</style></head><body>
+<header><a href="salao.html">← Voltar ao salão</a><strong>BRASVEGAS · SINUCA / BILHAR</strong></header>
+<main>
+<h1>🎱 Sinuca multiplayer</h1><p id="modo-sinuca" style="color:#f4d36b">MODO TREINO · fichas virtuais sem valor monetário</p>
+<p>Partida online com 2 jogadores ou 4 jogadores em duplas. As tacadas, colisões, faltas, caçapas e vencedor são calculados e validados pelo servidor.</p>
+<div class="controls">
+<label>Formato <select id="formato"><option value="2">2 jogadores · 1 × 1</option><option value="4">4 jogadores · duplas</option></select></label>
+<label>Valor da aposta <input id="valor-aposta" type="number" min="1" step="0.01" value="10"></label>
+<button id="entrar">ENTRAR NA MESA</button>
+<label>Força <input id="forca" type="range" min="1" max="100" value="55"></label>
+<button id="tacada" disabled>DAR TACADA</button>
+</div>
+<div id="placar"></div>
+<canvas id="mesa" width="1000" height="560" aria-label="Mesa de bilhar multiplayer"></canvas>
+<div id="mensagem">Entre em uma mesa. Quando todos os lugares forem ocupados, a partida começa.</div>
+<small>Regras simplificadas de bola 8: lisas (1–7), listradas (9–15), bola 8. A bola 8 antes de limpar seu grupo encerra a partida em derrota.</small>
+</main>
+<script src="js/sinuca-multiplayer.js"></script>
+</body></html>

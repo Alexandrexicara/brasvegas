@@ -11,8 +11,16 @@ function salvarSessao(t, u) {
 }
 
 function atualizarInterface() {
-  const saldoEl = document.getElementById('mostrar-saldo');
-  if (saldoEl && usuario) saldoEl.textContent = Number(usuario.saldo||0).toLocaleString('pt-BR', {minimumFractionDigits:2});
+  const saldoEl=document.getElementById('mostrar-saldo');
+  if(saldoEl&&usuario){
+    const treino=usuario.modoJogo==='treino',saldo=treino?usuario.saldoTreino:usuario.saldo;
+    saldoEl.textContent=Number(saldo||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    if(saldoEl.parentElement?.firstChild?.nodeType===3)saldoEl.parentElement.firstChild.textContent=treino?'🎟️ Fichas de treino: ':'💰 R$ ';
+    const modo=document.getElementById('modo-plataforma');
+    if(modo)modo.textContent=treino?'MODO TREINO · fichas virtuais sem valor monetário':'MODO REAL · apostas sujeitas à validação bancária e jurídica';
+    const deposito=document.getElementById('btn-deposito');
+    if(deposito)deposito.hidden=treino;
+  }
 }
 
 async function fazerLogin() {
@@ -49,9 +57,9 @@ function sair() { localStorage.clear(); window.location.href='index.html'; }
 
 async function carregarSaldo() {
   if (!token) return;
-  const res = await fetch(`${API_BASE}/usuario`, { headers: { 'Authorization': token } });
+  const res = await fetch(`${API_BASE}/usuario`, { headers: { 'Authorization': 'Bearer ' + token } });
   const d = await res.json();
-  if (d.saldo && usuario) usuario.saldo = d.saldo;
+  if(usuario){if(typeof d.saldo==='number')usuario.saldo=d.saldo;if(typeof d.saldoTreino==='number')usuario.saldoTreino=d.saldoTreino;if(d.modoJogo)usuario.modoJogo=d.modoJogo;localStorage.setItem('brasvegas-user',JSON.stringify(usuario));}
   atualizarInterface();
 }
 
@@ -70,39 +78,88 @@ async function girarRoleta() {
   const valor = Number(document.getElementById('valor-aposta')?.value);
   const numero = document.getElementById('numero-escolhido')?.value;
   if (!valor || valor <= 0) return alert('Valor inválido!');
+  const selecao = apostaEscolhida === 'numero'
+    ? { tipo: 'numero', numero: Number(numero) }
+    : { tipo: apostaEscolhida };
   const roleta = document.getElementById('roleta');
   if (roleta) roleta.classList.add('girando');
-  setTimeout(async () => {
-    const res = await fetch(`${API_BASE}/roleta/apostar`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': token },
-      body: JSON.stringify({ tipoAposta: apostaEscolhida, valor, numeroEscolhido: numero })
+  try {
+    const rodadaRes = await fetch(`${API_BASE}/jogos/roleta/rodada-atual`, {
+      headers: { 'Authorization': 'Bearer ' + token }
     });
-    const d = await res.json();
-    if (roleta) roleta.classList.remove('girando');
-    if (d.erro) return alert(d.erro);
+    const rodadaData = await rodadaRes.json();
+    if (!rodadaRes.ok) throw new Error(rodadaData.erro || 'Não foi possível abrir a rodada.');
+    const apostaRes = await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}/apostas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ valor, selecao })
+    });
+    const d = await apostaRes.json();
+    if (!apostaRes.ok) throw new Error(d.erro || 'Aposta não registrada.');
     const resEl = document.getElementById('resultado');
     if (resEl) {
-      resEl.style.display='block';
-      resEl.innerHTML = `<p>Sorteado: <strong>${d.numero} — ${d.cor.toUpperCase()}</strong></p>
-        <p style="color:${d.ganhou?'#39ff14':'#e50914'}">${d.ganhou?'✅ GANHOU! +R$ '+d.valorGanho.toFixed(2):'❌ PERDEU'}</p>
-        <p>Saldo: R$ ${d.saldo.toFixed(2)}</p>`;
+      resEl.style.display = 'block';
+      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Taxa 10%; 90% vai para o prêmio compartilhado. Aguardando o encerramento automático.';
     }
-    if (usuario) usuario.saldo = d.saldo;
-    atualizarInterface();
-  }, 4000);
+    let rodadaFinal=null;
+    for(let tentativa=0;tentativa<25;tentativa++){
+      await new Promise(resolve=>setTimeout(resolve,2000));
+      const consulta=await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}`,{headers:{'Authorization':'Bearer '+token}});
+      const estado=await consulta.json();
+      if(!consulta.ok)throw new Error(estado.erro||'Falha ao consultar resultado.');
+      if(estado.status==='paga'||estado.status==='encerrada'){rodadaFinal=estado;break;}
+    }
+    if(resEl){
+      if(!rodadaFinal)resEl.textContent='Aposta registrada. A rodada ainda está aberta; consulte novamente em instantes.';
+      else{
+        const ganhou=rodadaFinal.aposta?.status==='paga';
+        const premio=Number(rodadaFinal.aposta?.premioRecebido||0);
+        const unidade=rodadaFinal.modo==='treino'?'fichas':'R$';
+        const sorteio=rodadaFinal.resultado?.result||{};
+        resEl.innerHTML='<p><strong>'+(ganhou?'VOCÊ GANHOU':'RODADA ENCERRADA')+'</strong></p>'+
+          '<p>Resultado: '+(sorteio.number??JSON.stringify(sorteio))+'</p>'+
+          '<p>Seu prêmio: '+unidade+' '+premio.toFixed(2)+'</p>';
+      }
+    }
+    await carregarSaldo();
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    if (roleta) roleta.classList.remove('girando');
+  }
 }
 
 async function confirmarDeposito() {
+  if (!token) return alert('Faça login primeiro.');
+  const pendente = localStorage.getItem('brasvegas-pix-pendente');
+  if (pendente) {
+    const res = await fetch(`${API_BASE}/pix/cobrancas/${pendente}/confirmar`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await res.json();
+    if (!res.ok && res.status !== 202) return alert(d.erro || 'Não foi possível consultar o Pix.');
+    if (!d.confirmado) return alert('O Sicoob ainda não confirmou o pagamento. Depois de pagar, toque novamente em Confirmar.');
+    localStorage.removeItem('brasvegas-pix-pendente');
+    alert('Pix confirmado pelo Sicoob! Suas fichas foram creditadas.');
+    await carregarSaldo();
+    fecharModalDeposito();
+    return;
+  }
   const valor = Number(document.getElementById('valor-deposito')?.value);
-  if (!valor || valor <= 0) return alert('Valor inválido!');
-  const res = await fetch(`${API_BASE}/deposito`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': token },
+  if (!valor || valor < 1) return alert('Informe um valor a partir de R$ 1,00.');
+  const res = await fetch(`${API_BASE}/pix/cobrancas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ valor })
   });
   const d = await res.json();
-  if (d.erro) return alert(d.erro);
-  alert(`✅ Depósito de R$ ${valor.toFixed(2)}! Saldo: R$ ${d.saldoAtual.toFixed(2)}`);
-  fecharModalDeposito(); carregarSaldo();
+  if (!res.ok) return alert(d.erro || 'Não foi possível gerar o Pix.');
+  localStorage.setItem('brasvegas-pix-pendente', d.cobrancaId);
+  if (d.pixCopiaECola && navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(d.pixCopiaECola); } catch (_) {}
+  }
+  alert('Cobrança Pix criada. ' + (d.pixCopiaECola ? 'O código Pix Copia e Cola foi copiado, se o navegador permitiu. ' : '') + 'Pague no aplicativo do seu banco e depois toque novamente em Confirmar para consultar o Sicoob.');
+  if (d.pixCopiaECola) prompt('Pix Copia e Cola:', d.pixCopiaECola);
 }
 
 function abrirModalDeposito() { document.getElementById('modal-deposito')?.classList.add('aberto'); }
@@ -110,7 +167,8 @@ function fecharModalDeposito() { document.getElementById('modal-deposito')?.clas
 function abrirModalSaque() { document.getElementById('modal-saque')?.classList.add('aberto'); }
 function fecharModalSaque() { document.getElementById('modal-saque')?.classList.remove('aberto'); }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded',()=>{
   atualizarInterface();
-  if (token && window.location.pathname.includes('index.html')) window.location.href='salao.html';
+  if(token)carregarSaldo().catch(()=>{});
+  if(token&&window.location.pathname.includes('index.html'))window.location.href='salao.html';
 });
