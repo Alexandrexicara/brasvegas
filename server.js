@@ -151,7 +151,7 @@ app.post('/api/deposito',auth,async(req,res)=>{
     const antes=Number(w.saldo_treino), depois=antes+valor;
     await client.query('UPDATE carteiras SET saldo_treino=$1,updated_at=now() WHERE id=$2',[depois,w.id]);
     await client.query(
-      "INSERT INTO lancamentos_treino (usuario_id,tipo,valor,saldo_antes,saldo_depois,descricao) VALUES ($1,'credito_teste',$2,$3,$4,'Crédito exclusivamente para treinamento')",
+      "INSERT INTO lancamentos_treino (usuario_id,tipo,valor,saldo_antes,saldo_depois,descricao) VALUES ($1,'ajuste',$2,$3,$4,'Crédito exclusivamente para treinamento')",
       [req.usuarioId,valor,antes,depois]
     );
     await audit(client,req.usuarioId,'credito_treino','carteiras',w.id,{valor,saldoAntes:antes,saldoDepois:depois},req.ip);
@@ -195,8 +195,8 @@ app.post('/api/roleta/apostar',auth,async(req,res)=>{
       [game.rows[0].id,nr.rows[0].numero,JSON.stringify({numero,cor,tipoAposta,numeroEscolhido:tipoAposta==='numero'?numeroPick:null,ganhou}),valor]
     );
     const aposta=await client.query(
-      "INSERT INTO apostas (rodada_id,usuario_id,selecao,valor,taxa_plataforma,valor_para_premio,status,premio_recebido) VALUES ($1,$2,$3::jsonb,$4,0,0,'concluida',$5) RETURNING id",
-      [round.rows[0].id,req.usuarioId,JSON.stringify({tipo:tipoAposta,numero:tipoAposta==='numero'?numeroPick:null}),valor,premio]
+      "INSERT INTO apostas (rodada_id,usuario_id,selecao,valor,taxa_plataforma,valor_para_premio,status,premio_recebido) VALUES ($1,$2,$3::jsonb,$4,0,0,$6,$5) RETURNING id",
+      [round.rows[0].id,req.usuarioId,JSON.stringify({tipo:tipoAposta,numero:tipoAposta==='numero'?numeroPick:null}),valor,premio,ganhou?'ganhadora':'perdedora']
     );
     let depois=antes;
     if(!admin) {
@@ -231,8 +231,8 @@ app.get('/api/admin/resumo',auth,adminAuth,async(req,res)=>{
       pool.query("SELECT COUNT(*)::int AS total,COUNT(*) FILTER(WHERE status='ativo')::int AS ativos FROM usuarios"),
       pool.query("SELECT COALESCE(SUM(valor),0)::numeric AS faturamento,COUNT(*)::int AS total FROM transacoes WHERE lower(tipo) IN ('deposito','pagamento') AND lower(COALESCE(status,'')) IN ('concluido','aprovado','pago')"),
       pool.query("SELECT COUNT(*)::int AS total,COALESCE(SUM(valor),0)::numeric AS volume,COALESCE(SUM(premio_recebido),0)::numeric AS premios FROM apostas"),
-      pool.query("SELECT id,nome_completo,email,saldo,status,papel,created_at FROM usuarios ORDER BY created_at DESC LIMIT 100"),
-      pool.query("SELECT COUNT(*)::int AS lancamentos_treino,COALESCE(SUM(valor) FILTER(WHERE tipo='credito_teste'),0)::numeric AS creditos_treino FROM lancamentos_treino")
+      pool.query("SELECT u.id,u.nome_completo,u.email,COALESCE(c.saldo_treino,0) AS saldo,u.status,u.papel,u.created_at FROM usuarios u LEFT JOIN carteiras c ON c.usuario_id=u.id ORDER BY u.created_at DESC LIMIT 100"),
+      pool.query("SELECT COUNT(*)::int AS lancamentos_treino,COALESCE(SUM(valor) FILTER(WHERE tipo='ajuste'),0)::numeric AS creditos_treino FROM lancamentos_treino")
     ]);
     res.json({usuarios:u.rows[0],financeiro:t.rows[0],apostas:a.rows[0],ultimosUsuarios:g.rows,treinamento:ct.rows[0],dinheiroRealHabilitado:false});
   } catch(e) { console.error('Resumo admin:',e); res.status(500).json({erro:'Não foi possível carregar o painel administrativo.'}); }
