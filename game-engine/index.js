@@ -60,21 +60,36 @@ function validateRouletteBet(bet,result) {
   return false;
 }
 function rollDice() { return [pick(6)+1,pick(6)+1]; }
-function crapsResult() {
+function crapsResult(betType='pass') {
+  if(!['pass','dont_pass'].includes(betType)) throw new Error('Aposta de craps inválida.');
   const first=rollDice(), sum=first[0]+first[1];
-  if(sum===7||sum===11) return {rolls:[first],outcome:'win',point:null};
-  if(sum===2||sum===3||sum===12) return {rolls:[first],outcome:'lose',point:null};
+  if(betType==='pass') {
+    if(sum===7||sum===11) return {rolls:[first],outcome:'win',point:null,betType};
+    if(sum===2||sum===3||sum===12) return {rolls:[first],outcome:'lose',point:null,betType};
+  } else {
+    if(sum===2||sum===3) return {rolls:[first],outcome:'win',point:null,betType};
+    if(sum===7||sum===11) return {rolls:[first],outcome:'lose',point:null,betType};
+    if(sum===12) return {rolls:[first],outcome:'push',point:null,betType};
+  }
   const rolls=[first],point=sum;
   for(let i=0;i<1000;i++) {
-    const r=rollDice(); rolls.push(r); const s=r[0]+r[1];
-    if(s===point) return {rolls,outcome:'win',point};
-    if(s===7) return {rolls,outcome:'lose',point};
+    const r=rollDice(); rolls.push(r); const total=r[0]+r[1];
+    if(betType==='pass'&&total===point || betType==='dont_pass'&&total===7) return {rolls,outcome:'win',point,betType};
+    if(betType==='pass'&&total===7 || betType==='dont_pass'&&total===point) return {rolls,outcome:'lose',point,betType};
   }
   throw new Error('Limite de lançamentos excedido.');
 }
 function diceResult() { const dice=rollDice(); return {dice,sum:dice[0]+dice[1]}; }
+function evaluateDiceBet(selection,result) {
+  if(!selection||typeof selection!=='object') return false;
+  if(selection.type==='sum') return Number.isInteger(selection.value)&&selection.value>=2&&selection.value<=12&&selection.value===result.sum;
+  if(selection.type==='total_over') return Number.isInteger(selection.value)&&selection.value>=2&&selection.value<=11&&result.sum>selection.value;
+  if(selection.type==='total_under') return Number.isInteger(selection.value)&&selection.value>=3&&selection.value<=12&&result.sum<selection.value;
+  if(selection.type==='doubles') return result.dice[0]===result.dice[1];
+  return false;
+}
 function slotResult(symbols,paytable) {
-  if(!Array.isArray(symbols)||symbols.length!==3||!symbols.length) throw new Error('Configuração de símbolos inválida.');
+  if(!Array.isArray(symbols)||symbols.length<2||symbols.some(s=>typeof s!=='string'||!s)) throw new Error('Configuração de símbolos inválida.');
   const result=Array.from({length:3},()=>symbols[pick(symbols.length)]);
   const multiplier=result.every(s=>s===result[0])?Number(paytable[result[0]]||0):0;
   return {symbols:result,multiplier};
@@ -117,4 +132,4 @@ function verifyFairCommitment(serverSeed,commitment) {
   return createHash('sha256').update(serverSeed).digest('hex')===commitment;
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment};
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment};
