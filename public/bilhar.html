@@ -32,7 +32,7 @@ function step(){
    if(d<2*R){
     const nx=dx/d,ny=dy/d,over=2*R-d;a.x-=nx*over/2;a.y-=ny*over/2;b.x+=nx*over/2;b.y+=ny*over/2;
     const rel=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;
-    if(rel>0){a.vx-=rel*nx*.96;a.vy-=rel*ny*.96;b.vx+=rel*nx*.96;b.vy+=rel*ny*.96;hit()}
+    if(rel>0){a.vx-=rel*nx*.96;a.vy-=rel*ny*.96;b.vx+=rel*nx*.96;b.vy+=rel*ny*.96;if((a.cue||b.cue)&&zoom>1){zoom=1;camX=0;camY=0;draw()}hit()}
     if(Math.abs(a.vx)+Math.abs(a.vy)+Math.abs(b.vx)+Math.abs(b.vy)>.12)active=true;
    }
   }
