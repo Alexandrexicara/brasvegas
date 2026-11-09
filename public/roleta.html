@@ -3,42 +3,68 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎡 Roleta — BRASVEGAS</title>
+  <meta name="theme-color" content="#090806">
+  <title>Roleta Europeia — BRASVEGAS</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-<header>
-  <div class="logo" onclick="window.location.href='salao.html'" style="cursor:pointer;">← VOLTAR</div>
+<body class="pagina-roleta">
+<header class="topo-roleta">
+  <a class="logo" href="salao.html">← SALÃO</a>
+  <div class="marca-roleta">BRASVEGAS <span>ROULETTE</span></div>
   <div class="saldo-header">💰 R$ <span id="mostrar-saldo">0,00</span></div>
 </header>
-<div class="roleta-container">
-  <h1 style="color:#ffd700;">🎡 ROLETA DA SORTE</h1>
-  <div class="roleta-wrapper">
-    <div class="bolinha"></div>
-    <div id="roleta" class="roleta"></div>
-    <div class="roleta-centro"></div>
-  </div>
-  <div class="apostas-container">
-    <h3>💵 FAÇA SUA APOSTA</h3>
+
+<main class="mesa-roleta">
+  <section class="cabecalho-mesa">
+    <span class="etiqueta-cassino">ROULETTE EUROPÉENNE • SINGLE ZERO</span>
+    <h1>Roleta Europeia</h1>
+    <p>Uma roda completa, 37 casas numeradas e uma bola em movimento independente.</p>
+  </section>
+
+  <section class="area-roleta">
+    <div class="roleta-palco">
+      <div class="aro-luz"></div>
+      <div class="aro-metal">
+        <div class="marcadores-metal"></div>
+        <canvas id="roleta-canvas" width="760" height="760" aria-label="Roda de roleta europeia com números de zero a 36"></canvas>
+        <div class="pino-roleta"></div>
+        <div id="trilho-bola" class="trilho-bola"><div id="bola-roleta" class="bola-roleta"></div></div>
+      </div>
+      <div class="base-roleta"><span>BRASVEGAS</span></div>
+    </div>
+    <div class="painel-resultado">
+      <div class="resultado-label">ÚLTIMO RESULTADO</div>
+      <div id="numero-resultado" class="numero-resultado">—</div>
+      <div id="cor-resultado" class="cor-resultado">Aguardando rodada</div>
+      <div class="historico-label">ÚLTIMOS NÚMEROS</div>
+      <div id="historico-roleta" class="historico-roleta"><span>—</span></div>
+    </div>
+  </section>
+
+  <section class="mesa-apostas">
+    <div class="mesa-titulo"><span>FAÇA SUA APOSTA</span><small>ESCOLHA UMA OPÇÃO</small></div>
     <div class="aposta-opcoes">
-      <button class="btn btn-vermelho" onclick="selecionarAposta('vermelho')">🔴 VERMELHO<br>2x</button>
-      <button class="btn btn-preto" onclick="selecionarAposta('preto')">⚫ PRETO<br>2x</button>
-      <button class="btn btn-verde" onclick="selecionarAposta('verde')">🟢 VERDE<br>36x</button>
+      <button class="ficha-aposta ficha-vermelha" onclick="selecionarAposta('vermelho')"><span class="ficha-circulo">R</span><b>VERMELHO</b><small>2x</small></button>
+      <button class="ficha-aposta ficha-preta" onclick="selecionarAposta('preto')"><span class="ficha-circulo">P</span><b>PRETO</b><small>2x</small></button>
+      <button class="ficha-aposta ficha-verde" onclick="selecionarAposta('verde')"><span class="ficha-circulo">0</span><b>ZERO</b><small>36x</small></button>
+      <button class="ficha-aposta ficha-numero" onclick="selecionarAposta('numero')"><span class="ficha-circulo">#</span><b>NÚMERO</b><small>36x</small></button>
     </div>
-    <div style="margin:15px 0;">
-      <label>Nº (0-36):</label>
-      <input type="number" id="numero-escolhido" min="0" max="36" placeholder="Nº" style="width:70px; padding:8px; background:#2d2d2d; border:2px solid #444; color:#fff; border-radius:6px;">
-      <button class="btn btn-laranja" style="padding:8px 12px;" onclick="selecionarAposta('numero')">Nº</button>
+    <div class="controles-aposta">
+      <label id="campo-numero-label">NÚMERO ESCOLHIDO
+        <select id="numero-escolhido">
+          <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option><option value="32">32</option><option value="33">33</option><option value="34">34</option><option value="35">35</option><option value="36">36</option>
+        </select>
+      </label>
+      <label>VALOR DA APOSTA
+        <div class="entrada-valor"><span>R$</span><input type="number" id="valor-aposta" min="1" step="0.01" value="10"></div>
+      </label>
     </div>
-    <div class="valor-aposta">
-      <label>Valor R$:</label>
-      <input type="number" id="valor-aposta" min="1" value="10">
-    </div>
-    <p id="tipo-aposta" style="color:#39ff14; font-weight:bold;">Selecione sua aposta acima</p>
-    <button class="btn btn-dourado" style="width:100%; font-size:18px; padding:12px; margin-top:10px;" onclick="girarRoleta()">🎰 GIRAR E APOSTAR!</button>
-    <div id="resultado" class="resultado-roleta" style="display:none;"></div>
-  </div>
-</div>
+    <div class="aposta-selecionada" id="tipo-aposta">Selecione uma opção para apostar</div>
+    <button id="btn-girar-roleta" class="botao-girar" onclick="girarRoleta()"><span>GIRAR A ROLETA</span><b>↗</b></button>
+    <p class="aviso-jogo">Simulação de entretenimento. Resultados e saldo dependem do servidor do jogo.</p>
+  </section>
+</main>
 <script src="js/app.js"></script>
+<script src="js/roleta-game.js"></script>
 </body>
 </html>
