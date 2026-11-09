@@ -62,7 +62,18 @@
      return;
     }
    }
-  }catch(e){if(!String(e.message).includes('não encontrada'))message.textContent=e.message;}
+  }catch(e){
+   if(String(e.message).includes('não encontrada')||String(e.message).includes('encerrada')){
+    try{
+     const final=await api('/rodadas/'+roundId);
+     if(final.status==='paga'||final.status==='encerrada'){
+      const won=final.aposta?.status==='paga';
+      message.textContent=(won?'VOCÊ VENCEU! ':'Partida encerrada. ')+'Prêmio: R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+      shootBtn.disabled=true;joinBtn.disabled=false;return;
+     }
+    }catch(_){}
+   }else message.textContent=e.message;
+  }
   finally{polling=false;}
   setTimeout(refresh,1500);
  }
