@@ -94,3 +94,25 @@ test('blackjack aceita hit e stand e encerra a mão no servidor',()=>{
  assert.ok(['win','lose','push','bust','blackjack'].includes(state.outcome));
  assert.ok(state.playerTotal>=0&&state.dealerTotal>=0);
 });
+
+test('sinuca cria mesas 1x1 e em duplas com lugares definidos',()=>{
+ const two=g.startBilliardsGame(2,[{betId:'a',userId:'u1'},{betId:'b',userId:'u2'}]);
+ assert.equal(two.status,'playing');assert.equal(two.players.length,2);assert.equal(two.players[0].team,0);assert.equal(two.players[1].team,1);
+ const four=g.startBilliardsGame(4,[{betId:'a'},{betId:'b'},{betId:'c'},{betId:'d'}]);
+ assert.deepEqual(four.players.map(p=>p.team),[0,1,0,1]);
+ assert.equal(four.balls.length,16);
+});
+test('sinuca calcula a tacada no servidor e alterna turno quando não encaçapa',()=>{
+ const state=g.startBilliardsGame(2,[{betId:'a',userId:'u1'},{betId:'b',userId:'u2'}]);
+ const next=g.simulateBilliardsShot(state,'a',0,40);
+ assert.equal(next.shotNumber,1);
+ assert.ok(next.lastShot);
+ assert.ok([0,1].includes(next.turn));
+ assert.equal(next.balls.length,16);
+});
+test('sinuca rejeita tacada fora da vez e seleções inválidas',()=>{
+ const state=g.startBilliardsGame(2,[{betId:'a'},{betId:'b'}]);
+ assert.throws(()=>g.simulateBilliardsShot(state,'b',0,50),/vez/);
+ assert.equal(g.validateBetSelection('sinuca',{type:'join',format:2}),true);
+ assert.equal(g.validateBetSelection('sinuca',{type:'join',format:3}),false);
+});
