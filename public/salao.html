@@ -13,7 +13,7 @@
   <div class="boas-vindas">BEM-VINDO AO SALÃO</div>
   <div class="saldo-header">💰 R$ <span id="mostrar-saldo">0,00</span></div>
   <div class="nav-botoes">
-    <button class="btn btn-verde" onclick="abrirModalDeposito()">⬆️ DEPÓSITO</button>
+    <button class="btn btn-verde" onclick="abrirModalDeposito()">🎮 CRÉDITOS DE TREINO</button>
     <button class="btn btn-preto" onclick="sair()">SAIR</button>
   </div>
 </header>
@@ -82,8 +82,8 @@
 
 <div id="modal-deposito" class="modal">
   <div class="modal-content">
-    <h3>⬆️ FAZER DEPÓSITO</h3>
-    <input type="number" id="valor-deposito" placeholder="Valor em R$" min="1" step="0.01">
+    <h3>🎮 ADICIONAR CRÉDITOS DE TREINO</h3>
+    <input type="number" id="valor-deposito" placeholder="Quantidade de créditos de treino" min="1" step="0.01">
     <div class="botoes-modal">
       <button class="btn btn-preto" onclick="fecharModalDeposito()">Cancelar</button>
       <button class="btn btn-verde" onclick="confirmarDeposito()">Confirmar</button>
