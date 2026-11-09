@@ -95,7 +95,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 function auth(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1];
+  const header = req.headers.authorization || '';
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : header.trim();
   if (!token) return res.status(401).json({ erro: 'Faça login' });
   try {
     const d = jwt.verify(token, JWT_SECRET);
@@ -249,11 +250,11 @@ app.get('/api/admin/resumo',auth,adminAuth,async(req,res)=>{
   const [u,t,a,g]=await Promise.all([
    pool.query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='ativo')::int AS ativos FROM usuarios"),
    pool.query("SELECT COALESCE(SUM(valor),0)::numeric AS faturamento, COUNT(*)::int AS total FROM transacoes WHERE lower(tipo) IN ('deposito','pagamento') AND lower(COALESCE(status,'')) IN ('concluido','aprovado','pago')"),
-   pool.query("SELECT COUNT(*)::int AS total, COALESCE(SUM(valor),0)::numeric AS volume, COALESCE(SUM(valor_premio),0)::numeric AS premios FROM apostas"),
+   pool.query("SELECT COUNT(*)::int AS total, COALESCE(SUM(valor),0)::numeric AS volume, COALESCE(SUM(premio_recebido),0)::numeric AS premios FROM apostas"),
    pool.query("SELECT id,nome_completo,email,saldo,status,papel,created_at FROM usuarios ORDER BY created_at DESC LIMIT 100")
   ]);
   res.json({usuarios:u.rows[0],financeiro:t.rows[0],apostas:a.rows[0],ultimosUsuarios:g.rows});
- } catch(e) { res.status(500).json({erro:'Não foi possível carregar o painel'}); }
+ } catch(e) { console.error('Falha no resumo administrativo:',e); res.status(500).json({erro:'Não foi possível carregar o painel. Verifique as tabelas e a implantação do servidor.'}); }
 });
 app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 
