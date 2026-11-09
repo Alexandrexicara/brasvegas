@@ -184,6 +184,8 @@ function createBilliardsRack() {
     const n=id++,group=n===8?'eight':n<=7?'solid':'stripe';
     balls.push({id:n,x:690+row*23,y:280+(col-row/2)*26,vx:0,vy:0,group,pocketed:false});
   }
+  const center=balls.find(b=>b.id===5),eight=balls.find(b=>b.id===8);
+  if(center&&eight){const x=center.x,y=center.y;center.x=eight.x;center.y=eight.y;eight.x=x;eight.y=y;}
   return balls;
 }
 function startBilliardsGame(format,players) {
