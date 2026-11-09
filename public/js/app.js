@@ -91,11 +91,26 @@ async function girarRoleta() {
     const resEl = document.getElementById('resultado');
     if (resEl) {
       resEl.style.display = 'block';
-      resEl.innerHTML = `<p><strong>APOSTA REGISTRADA</strong></p>
-        <p>Rodada #${rodadaData.rodada.numero}</p>
-        <p>Taxa da plataforma: 10%</p>
-        <p>Valor reservado para o prêmio: R$ ${Number(d.valorReservadoParaPremio).toFixed(2)}</p>
-        <p>O resultado será publicado quando a rodada for encerrada.</p>`;
+      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Aguardando o encerramento automático.';
+    }
+    let rodadaFinal=null;
+    for(let tentativa=0;tentativa<25;tentativa++){
+      await new Promise(resolve=>setTimeout(resolve,2000));
+      const consulta=await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}`,{headers:{'Authorization':'Bearer '+token}});
+      const estado=await consulta.json();
+      if(!consulta.ok)throw new Error(estado.erro||'Falha ao consultar resultado.');
+      if(estado.status==='paga'||estado.status==='encerrada'){rodadaFinal=estado;break;}
+    }
+    if(resEl){
+      if(!rodadaFinal)resEl.textContent='Aposta registrada. A rodada ainda está aberta; consulte novamente em instantes.';
+      else{
+        const ganhou=rodadaFinal.aposta?.status==='paga';
+        const premio=Number(rodadaFinal.aposta?.premioRecebido||0);
+        const sorteio=rodadaFinal.resultado?.result||{};
+        resEl.innerHTML=`<p><strong>${ganhou?'VOCÊ GANHOU':'RODADA ENCERRADA'}</strong></p>
+          <p>Resultado: ${sorteio.number??JSON.stringify(sorteio)}</p>
+          <p>Seu prêmio: R$ ${premio.toFixed(2)}</p>`;
+      }
     }
     await carregarSaldo();
   } catch (e) {
