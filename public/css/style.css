@@ -54,3 +54,17 @@ footer { background: #000; padding: 30px 20px; margin-top: 60px; border-top: 1px
 .btn-olho:hover { background: rgba(255,255,255,.10); }
 .btn-olho:focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
 .auth-container button:disabled { opacity: .7; cursor: wait; }
+
+/* Central de avisos e validação dos formulários */
+.avisos-brasvegas { position: fixed; top: 18px; right: 18px; z-index: 5000; width: min(390px, calc(100vw - 36px)); display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.aviso-brasvegas { display: flex; flex-direction: column; gap: 5px; padding: 14px 16px; border-radius: 10px; border-left: 5px solid #3498db; background: #20242b; color: #fff; box-shadow: 0 8px 28px rgba(0,0,0,.45); opacity: 0; transform: translateX(18px); transition: opacity .25s ease, transform .25s ease; }
+.aviso-brasvegas.aviso-visivel { opacity: 1; transform: translateX(0); }
+.aviso-brasvegas strong { font-size: 14px; }
+.aviso-brasvegas span { font-size: 14px; line-height: 1.4; }
+.aviso-brasvegas small { color: #d0d0d0; font-size: 12px; line-height: 1.4; }
+.aviso-brasvegas.aviso-erro { border-left-color: #ff4d4d; }
+.aviso-brasvegas.aviso-sucesso { border-left-color: #39ff14; }
+.aviso-brasvegas.aviso-info { border-left-color: #ffd700; }
+.auth-container input.campo-erro, .campo-erro { border-color: #ff4d4d !important; box-shadow: 0 0 0 2px rgba(255,77,77,.18); }
+.mensagem-campo-erro { display: block; color: #ff8b8b; font-size: 12px; margin: -3px 0 7px 3px; }
+@media (max-width: 600px) { .avisos-brasvegas { top: 10px; right: 10px; width: calc(100vw - 20px); } }
