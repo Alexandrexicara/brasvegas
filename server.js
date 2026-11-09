@@ -466,15 +466,23 @@ async function liquidarRodadaPorId(rodadaId) {
       pagamentos.set(a.id,cents);distribuido+=cents;
     });
     for(const a of apostas.rows){
-      const w=await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[a.usuario_id]);
-      if(!w.rows[0])throw new Error('Carteira do participante não encontrada.');
-      const disp=Number(w.rows[0].saldo_disponivel),reserv=Number(w.rows[0].saldo_reservado),aposta=Number(a.valor);
       const pagamento=pagamentos.has(a.id)?pagamentos.get(a.id)/100:0;
-      await client.query('UPDATE carteiras SET saldo_disponivel=saldo_disponivel+$1,saldo_reservado=saldo_reservado-$2,updated_at=NOW() WHERE id=$3',[pagamento,aposta,w.rows[0].id]);
-      await client.query(
-        "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'rodada',$9,$10,$11)",
-        [w.rows[0].id,a.usuario_id,pagamento>0?'premio_credito':'aposta_liquidada',pagamento>0?pagamento:aposta,disp,disp+pagamento,reserv,reserv-aposta,rodadaId,(pagamento>0?'payout:':'loss:')+a.id,pagamento>0?'Prêmio da rodada compartilhada':'Liquidação de aposta perdedora']
-      );
+      if(r.rows[0].modo==='real'){
+        const w=await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[a.usuario_id]);
+        if(!w.rows[0])throw new Error('Carteira do participante não encontrada.');
+        const disp=Number(w.rows[0].saldo_disponivel),reserv=Number(w.rows[0].saldo_reservado),aposta=Number(a.valor);
+        await client.query('UPDATE carteiras SET saldo_disponivel=saldo_disponivel+$1,saldo_reservado=saldo_reservado-$2,updated_at=NOW() WHERE id=$3',[pagamento,aposta,w.rows[0].id]);
+        await client.query(
+          "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'rodada',$9,$10,$11)",
+          [w.rows[0].id,a.usuario_id,pagamento>0?'premio_credito':'aposta_liquidada',pagamento>0?pagamento:aposta,disp,disp+pagamento,reserv,reserv-aposta,rodadaId,(pagamento>0?'payout:':'loss:')+a.id,pagamento>0?'Prêmio da rodada real':'Liquidação de aposta real']
+        );
+      }else if(pagamento>0){
+        const w=await client.query('SELECT saldo_treino FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[a.usuario_id]);
+        if(!w.rows[0])throw new Error('Carteira de treino não encontrada.');
+        const antes=Number(w.rows[0].saldo_treino);
+        await client.query('UPDATE carteiras SET saldo_treino=saldo_treino+$1,updated_at=NOW() WHERE usuario_id=$2',[pagamento,a.usuario_id]);
+        await client.query("INSERT INTO lancamentos_treino(usuario_id,tipo,valor,saldo_antes,saldo_depois,referencia_id,chave_idempotencia,descricao) VALUES($1,'premio',$2,$3,$4,$5,$6,'Prêmio de rodada com fichas virtuais')",[a.usuario_id,pagamento,antes,antes+pagamento,a.id,'treino:payout:'+a.id]);
+      }
       await client.query("UPDATE apostas SET status=$1,premio_recebido=$2 WHERE id=$3",[pagamento>0?'paga':'perdedora',pagamento,a.id]);
     }
     const resultadoSalvo={...apuracao,apuradoEm:new Date().toISOString(),regra:'resultado gerado no servidor com crypto.randomInt'};
