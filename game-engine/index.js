@@ -90,14 +90,22 @@ function dealBlackjack() {
   const player=[cards.pop(),cards.pop()],dealer=[cards.pop(),cards.pop()];
   return {player,dealer,playerTotal:blackjackTotal(player),dealerUp:dealer[0]};
 }
+function bankerShouldDraw(bankerTotal, playerThirdCardValue) {
+  if (playerThirdCardValue === null) return bankerTotal <= 5;
+  if (bankerTotal <= 2) return true;
+  if (bankerTotal === 3) return playerThirdCardValue !== 8;
+  if (bankerTotal === 4) return playerThirdCardValue >= 2 && playerThirdCardValue <= 7;
+  if (bankerTotal === 5) return playerThirdCardValue >= 4 && playerThirdCardValue <= 7;
+  if (bankerTotal === 6) return playerThirdCardValue === 6 || playerThirdCardValue === 7;
+  return false;
+}
 function dealBaccarat() {
   const cards=shuffle(deck());
   const player=[cards.pop(),cards.pop()],banker=[cards.pop(),cards.pop()];
-  let p=baccaratTotal(player),b=baccaratTotal(banker);
+  let p=baccaratTotal(player),b=baccaratTotal(banker),playerThird=null;
   if(p<8&&b<8) {
-    if(p<=5) player.push(cards.pop());
-    p=baccaratTotal(player);
-    if(b<=2 || (b===3&&p!==8) || (b===4&&p>=2&&p<=7) || (b===5&&p>=4&&p<=7) || (b===6&&p>=6&&p<=7)) banker.push(cards.pop());
+    if(p<=5) { player.push(cards.pop()); playerThird=player[player.length-1].rank==='A'?1:['10','J','Q','K'].includes(player[player.length-1].rank)?0:Number(player[player.length-1].rank); }
+    if(bankerShouldDraw(b,playerThird)) banker.push(cards.pop());
   }
   p=baccaratTotal(player);b=baccaratTotal(banker);
   return {player,banker,playerTotal:p,bankerTotal:b,winner:p===b?'tie':p>b?'player':'banker'};
@@ -109,4 +117,4 @@ function verifyFairCommitment(serverSeed,commitment) {
   return createHash('sha256').update(serverSeed).digest('hex')===commitment;
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment};
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment};
