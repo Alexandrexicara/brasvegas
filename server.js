@@ -328,7 +328,6 @@ app.get('/api/rodadas/:id',auth,async(req,res)=>{
 });
 
 app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
-  if (apostasReaisBloqueadas(res)) return;
   const valor = dinheiro(req.body?.valor);
   let selecao = req.body?.selecao;
   if (!valor || !selecao || typeof selecao !== 'object') return res.status(400).json({ erro: 'Valor ou seleção inválida.' });
