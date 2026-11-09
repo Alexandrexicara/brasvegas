@@ -208,11 +208,11 @@ app.post('/api/pix/cobrancas', auth, async (req, res) => {
       chave: process.env.SICOOB_PIX_KEY,
       solicitacaoPagador: 'Compra de fichas BrasVegas'
     });
-    await client.query(
-      "INSERT INTO cobrancas_pix(usuario_id,provedor,referencia_provedor,txid,valor,status,copia_cola) VALUES($1,'sicoob',$2,$3,$4,'pendente',$5)",
+    const saved = await client.query(
+      "INSERT INTO cobrancas_pix(usuario_id,provedor,referencia_provedor,txid,valor,status,copia_cola) VALUES($1,'sicoob',$2,$3,$4,'pendente',$5) RETURNING id",
       [req.usuarioId,txid,txid,valor,cobranca.pixCopiaECola || null]
     );
-    res.status(201).json({ sucesso:true, txid, valor, status:cobranca.status || 'ATIVA', pixCopiaECola:cobranca.pixCopiaECola || null, expiracaoSegundos:3600 });
+    res.status(201).json({ sucesso:true, cobrancaId:saved.rows[0].id, txid, valor, status:cobranca.status || 'ATIVA', pixCopiaECola:cobranca.pixCopiaECola || null, expiracaoSegundos:3600 });
   } catch (e) {
     console.error('Sicoob criar cobrança:',e.message);
     res.status(502).json({ erro:'Não foi possível criar a cobrança Pix no Sicoob. Verifique a habilitação da API e as credenciais.' });
