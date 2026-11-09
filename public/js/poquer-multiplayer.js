@@ -64,7 +64,7 @@
    }
    if(final){
     const detail=final.resultado?.byBetId?.[betId];
-    result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ VENCEU A MESA · ':'RODADA ENCERRADA · ')+(detail?.rank?.name||'mão apurada')+' · Prêmio R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+    result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ VENCEU A MESA · ':'RODADA ENCERRADA · ')+(detail?.rank?.name||'mão apurada')+' · Prêmio '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
     await refreshBalance();newBtn.disabled=false;
    }else result.textContent+=' Resultado será atualizado quando a rodada encerrar.';
   }catch(e){result.textContent=e.message;drawBtn.disabled=false;newBtn.disabled=false;}
