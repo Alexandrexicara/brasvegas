@@ -46,3 +46,11 @@ header { background: linear-gradient(90deg, var(--vermelho), var(--laranja)); pa
 .botoes-modal { display: flex; gap: 12px; margin-top: 25px; }
 .botoes-modal .btn { flex: 1; }
 footer { background: #000; padding: 30px 20px; margin-top: 60px; border-top: 1px solid var(--cinza-claro); text-align: center; color: #777; font-size: 14px; }
+
+/* Campo de senha com controle de visualização */
+.campo-senha { position: relative; width: 100%; }
+.auth-container .campo-senha input { width: 100%; padding-right: 58px; }
+.btn-olho { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 42px; height: 38px; border: 0; border-radius: 7px; background: transparent; color: #fff; font-size: 21px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn-olho:hover { background: rgba(255,255,255,.10); }
+.btn-olho:focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
+.auth-container button:disabled { opacity: .7; cursor: wait; }
