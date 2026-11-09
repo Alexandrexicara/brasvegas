@@ -185,7 +185,7 @@ function validateBetSelection(code,selection) {
   }
   if(code==='bacara') return ['player','banker','tie','jogador','banco','empate'].includes(type);
   if(code==='craps') return ['pass','dont_pass','passar','naopassar'].includes(type);
-  if(code==='dados') return (type==='sum'&&Number.isInteger(Number(selection.value))&&selection.value>=2&&selection.value<=12) ||
+  if(code==='dados') return ['pass','dont_pass','passar','naopassar'].includes(type) || (type==='sum'&&Number.isInteger(Number(selection.value))&&Number(selection.value)>=2&&Number(selection.value)<=12) ||
     (type==='total_over'&&Number.isInteger(Number(selection.value))&&selection.value>=2&&selection.value<=11) ||
     (type==='total_under'&&Number.isInteger(Number(selection.value))&&selection.value>=3&&selection.value<=12) || type==='doubles';
   if(code==='blackjack') return Array.isArray(selection.actions)&&selection.actions.length<=10&&selection.actions.every(a=>a==='hit'||a==='stand');
@@ -264,7 +264,10 @@ function resolveRound(code,bets) {
     const pass=crapsResult('pass'); result=pass;
     bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;const betType=s==='dont_pass'||s==='naopassar'?'dont_pass':s==='pass'||s==='passar'?'pass':null;if(!betType) return;const firstSum=pass.rolls[0][0]+pass.rolls[0][1];const outcome=betType==='pass'?pass.outcome:(firstSum===12?'push':pass.outcome==='win'?'lose':'win');if(outcome==='win')win(b);});
   } else if(code==='dados') {
-    result=diceResult(); bets.forEach(b=>{if(evaluateDiceBet(b.selecao,result))win(b);});
+    if(bets.some(b=>['pass','dont_pass','passar','naopassar'].includes(b.selecao?.type||b.selecao?.tipo))) {
+      const pass=crapsResult('pass');result=pass;
+      bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;const betType=s==='dont_pass'||s==='naopassar'?'dont_pass':'pass';const firstSum=pass.rolls[0][0]+pass.rolls[0][1];const outcome=betType==='pass'?pass.outcome:(firstSum===12?'push':pass.outcome==='win'?'lose':'win');if(outcome==='win')win(b);});
+    } else {result=diceResult();bets.forEach(b=>{if(evaluateDiceBet(b.selecao,result))win(b);});}
   } else if(code==='caca-niqueis'||code==='frutas') {
     for(const b of bets){const r=code==='frutas'?fruitResult():slotResult(['🍒','🍋','🍊','🍇','💎','⭐'],{'🍒':10,'🍋':15,'🍊':20,'🍇':30,'💎':50,'⭐':100});byBetId[b.id]=r;if(r.multiplier>0)win(b);}
     result={tipo:'resultado_individual',porAposta:byBetId};
