@@ -114,6 +114,11 @@ function auth(req, res, next) {
     return res.status(401).json({ erro: 'Sessão inválida ou expirada.' });
   }
 }
+function selecaoPublica(s) {
+  if (s && Array.isArray(s.player) && Array.isArray(s.dealer)) return { player:s.player, dealer:s.status==='done'?s.dealer:[s.dealer[0]], status:s.status, playerTotal:gameEngine.blackjackTotal(s.player), dealerTotal:s.status==='done'?gameEngine.blackjackTotal(s.dealer):null, outcome:s.status==='done'?s.outcome:null };
+  if (s && Array.isArray(s.hand)) return { hand:s.hand, status:s.status, rank:s.rank || null };
+  return s;
+}
 function canonicalJson(value) { if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']'; if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonicalJson(value[k])).join(',') + '}'; return JSON.stringify(value); }
 function dinheiro(v) {
   const n = Number(v);
@@ -293,14 +298,14 @@ app.get('/api/rodadas/:id',auth,async(req,res)=>{
     );
     if(!q.rows[0])return res.status(404).json({erro:'Rodada não encontrada.'});
     const row=q.rows[0];
-    res.json({id:row.id,numero:row.numero,status:row.status,resultado:row.resultado,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:row.selecao}:null});
+    res.json({id:row.id,numero:row.numero,status:row.status,resultado:row.resultado,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
   }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar a rodada.'});}
 });
 
 app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
   if (apostasReaisBloqueadas(res)) return;
   const valor = dinheiro(req.body?.valor);
-  const selecao = req.body?.selecao;
+  let selecao = req.body?.selecao;
   if (!valor || !selecao || typeof selecao !== 'object') return res.status(400).json({ erro: 'Valor ou seleção inválida.' });
   const client = await pool.connect();
   try {
@@ -318,6 +323,10 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
       "INSERT INTO apostas(rodada_id,usuario_id,selecao,valor,taxa_plataforma,valor_para_premio,status) VALUES($1,$2,$3,$4,$5,$6,'reservada') RETURNING id",
       [req.params.id,req.usuarioId,selecao,valor,taxa,premio]
     );
+    let gameState=null;
+    if(rodada.rows[0].codigo==='blackjack') gameState=gameEngine.startBlackjackGame();
+    if(rodada.rows[0].codigo==='poquer') gameState=gameEngine.startPokerGame();
+    if(gameState){selecao={...selecao,...gameState};await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[selecao,bet.rows[0].id]);}
     await client.query('UPDATE rodadas SET total_apostado=total_apostado+$1,taxa_total=taxa_total+$2,premio_disponivel=premio_disponivel+$3 WHERE id=$4', [valor,taxa,premio,req.params.id]);
     await client.query(
       "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_reserva',$3,$4,$5,$6,$7,'aposta',$8,$9,'Reserva de aposta; comissão de 10% contabilizada na rodada')",
@@ -332,7 +341,7 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
       [bet.rows[0].id,taxa,saldoComissaoAntes,Number(contaDepois.rows[0].saldo_comissoes)]
     );
     await client.query('COMMIT');
-    res.status(201).json({ sucesso:true, apostaId:bet.rows[0].id, valor, taxaPercentual:10, valorReservadoParaPremio:premio, mensagem:'Aposta registrada na rodada compartilhada.' });
+    res.status(201).json({ sucesso:true, apostaId:bet.rows[0].id, valor, taxaPercentual:10, valorReservadoParaPremio:premio, gameState:gameState?selecaoPublica(selecao):null, mensagem:'Aposta registrada na rodada compartilhada.' });
   } catch (e) {
     await client.query('ROLLBACK');
     res.status(400).json({ erro:e.message || 'Não foi possível registrar a aposta.' });
