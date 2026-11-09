@@ -36,7 +36,7 @@
    const current=await api('/jogos/poquer/rodada-atual');
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:{type:'draw'}})});
    betId=bet.apostaId;roundId=current.rodada.id;hand=bet.gameState.hand;status=bet.gameState.status;
-   render();result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Mão distribuída pelo servidor. Selecione as cartas que deseja trocar.';
+   render();result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Mão distribuída pelo servidor. Taxa 10%; 90% vai para o prêmio compartilhado. Selecione as cartas que deseja trocar.';
    await refreshBalance();drawBtn.disabled=false;
    }catch(e){
    result.textContent=e.message;newBtn.disabled=false;
