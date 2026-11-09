@@ -68,7 +68,7 @@
      const final=await api('/rodadas/'+roundId);
      if(final.status==='paga'||final.status==='encerrada'){
       const won=final.aposta?.status==='paga';
-      message.textContent=(won?'VOCÊ VENCEU! ':'Partida encerrada. ')+'Prêmio: R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+      message.textContent=(won?'VOCÊ VENCEU! ':'Partida encerrada. ')+'Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
       shootBtn.disabled=true;joinBtn.disabled=false;return;
      }
     }catch(_){}
