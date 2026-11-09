@@ -114,6 +114,12 @@ function auth(req, res, next) {
     return res.status(401).json({ erro: 'Sessão inválida ou expirada.' });
   }
 }
+function estadoSinucaPublico(s,usuarioId) {
+  if(!s)return {status:'waiting',players:[],isMyTurn:false};
+  const players=(s.players||[]).map(p=>({betId:p.betId,seat:p.seat,team:p.team,group:p.group}));
+  const current=s.players?.[s.turn];
+  return {...s,players,currentPlayerBetId:current?.betId||null,isMyTurn:!!current&&current.userId===usuarioId};
+}
 function selecaoPublica(s) {
   if (s && Array.isArray(s.player) && Array.isArray(s.dealer)) return { player:s.player, dealer:s.status==='done'?s.dealer:[s.dealer[0]], status:s.status, playerTotal:gameEngine.blackjackTotal(s.player), dealerTotal:s.status==='done'?gameEngine.blackjackTotal(s.dealer):null, outcome:s.status==='done'?s.outcome:null };
   if (s && Array.isArray(s.hand)) return { hand:s.hand, status:s.status, rank:s.rank || null };
@@ -325,6 +331,20 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
     );
     let gameState=null;
     if(rodada.rows[0].codigo==='blackjack') gameState=gameEngine.startBlackjackGame();
+    if(rodada.rows[0].codigo==='sinuca') {
+      const format=Number(selecao.format);
+      const prior=await client.query('SELECT resultado FROM rodadas WHERE id=$1 FOR UPDATE',[req.params.id]);
+      let state=prior.rows[0].resultado;
+      if(!state)state={format,status:'waiting',players:[],balls:[],turn:0,groupsAssigned:false,winnerTeam:null,winnerBetIds:[],lastShot:null,shotNumber:0};
+      if(state.format!==format)throw new Error('A mesa já foi criada para outro formato.');
+      if(state.status==='finished'||state.players.length>=format)throw new Error('Mesa de sinuca completa.');
+      const already=await client.query("SELECT 1 FROM apostas WHERE rodada_id=$1 AND usuario_id=$2 AND status='reservada'",[req.params.id,req.usuarioId]);
+      if(already.rowCount>1)throw new Error('Você já está nesta partida.');
+      state.players.push({betId:bet.rows[0].id,userId:req.usuarioId,seat:state.players.length,team:format===2?state.players.length:state.players.length%2,group:null});
+      if(state.players.length===format)state=gameEngine.startBilliardsGame(format,state.players);
+      await client.query('UPDATE rodadas SET resultado=$1 WHERE id=$2',[state,req.params.id]);
+      gameState=estadoSinucaPublico(state,req.usuarioId);
+    }
     if(rodada.rows[0].codigo==='poquer') {
       const count=await client.query('SELECT COUNT(*)::int AS total FROM apostas WHERE rodada_id=$1 AND status=\'reservada\'',[req.params.id]);
       if(count.rows[0].total>5)throw new Error('Mesa de pôquer completa. Máximo de 5 jogadores por rodada.');
@@ -398,7 +418,7 @@ async function liquidarRodadaPorId(rodadaId) {
     if(!r.rows[0]||r.rows[0].status!=='aberta'){await client.query('ROLLBACK');return {ignorada:true};}
     const apostas=await client.query("SELECT * FROM apostas WHERE rodada_id=$1 AND status='reservada' ORDER BY created_at,id FOR UPDATE",[rodadaId]);
     if(!apostas.rowCount){await client.query('ROLLBACK');return {vazia:true};}
-    const apuracao=gameEngine.resolveRound(r.rows[0].codigo,apostas.rows);
+    const apuracao=gameEngine.resolveRound(r.rows[0].codigo,apostas.rows,r.rows[0].resultado);
     const vencedoras=apostas.rows.filter(a=>apuracao.winnerIds.includes(a.id));
     const premioCentavos=Math.round(Number(r.rows[0].premio_disponivel)*100);
     const pesoTotal=vencedoras.reduce((s,a)=>s+Math.round(Number(a.valor_para_premio)*100),0);
@@ -457,7 +477,7 @@ pool.query('SELECT 1').then(()=>console.log('PostgreSQL/Neon conectado')).catch(
 const DURACAO_RODADA_SEGUNDOS=Math.max(15,Number(process.env.DURACAO_RODADA_SEGUNDOS||30));
 setInterval(async()=>{
   try{
-    const expiradas=await pool.query("SELECT id FROM rodadas WHERE status='aberta' AND inicio_em < NOW()-($1 * INTERVAL '1 second') AND EXISTS(SELECT 1 FROM apostas a WHERE a.rodada_id=rodadas.id AND a.status='reservada') ORDER BY inicio_em LIMIT 20",[DURACAO_RODADA_SEGUNDOS]);
+    const expiradas=await pool.query("SELECT r.id FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.status='aberta' AND r.inicio_em < NOW()-($1 * INTERVAL '1 second') AND (j.codigo<>'sinuca' OR r.resultado->>'status'='finished') AND EXISTS(SELECT 1 FROM apostas a WHERE a.rodada_id=r.id AND a.status='reservada') ORDER BY r.inicio_em LIMIT 20",[DURACAO_RODADA_SEGUNDOS]);
     for(const rodada of expiradas.rows){
       try{await liquidarRodadaPorId(rodada.id);}catch(e){console.error('Liquidação automática:',rodada.id,e.message);}
     }
