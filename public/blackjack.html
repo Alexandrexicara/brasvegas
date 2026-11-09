@@ -107,7 +107,7 @@ function criarCarta(carta,virada=false){
 }
 function novaPartida(){
   apostaAtual=parseFloat(apostaEl.value);
-  if(apostaAtual>saldo){res.textContent='❌ Saldo insuficiente!';res.style.color='#e50914';return;}
+  if(!Number.isFinite(apostaAtual)||apostaAtual<=0||apostaAtual>saldo){res.textContent='❌ Aposta inválida ou saldo insuficiente!';res.style.color='#e50914';return;}
   saldo-=apostaAtual;atualizarSaldo();btnNova.disabled=true;
   res.textContent='';fim=false;
   embaralhar();jogador=[];banca=[];
@@ -130,7 +130,7 @@ function pedir(){
   const s=somar(jogador);pontosJog.textContent=`(${s})`;
   if(s>21){
     res.textContent='💥 ESTOUROU!';res.style.color='#e50914';fim=true;
-    btnPedir.disabled=true;btnParar.disabled=true;desvirar();
+    btnPedir.disabled=true;btnParar.disabled=true;btnNova.disabled=false;desvirar();
   }
 }
 function parar(){
