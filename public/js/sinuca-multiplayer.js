@@ -93,7 +93,7 @@
   try{
    const current=await api('/jogos/sinuca/rodada-atual');roundId=current.rodada.id;
    const bet=await api('/rodadas/'+roundId+'/apostas',{method:'POST',body:JSON.stringify({valor:Number(amount.value),selecao:{type:'join',format:Number(format.value)}})});
-   myBetId=bet.apostaId;state=bet.gameState;if(bet.modoJogo==='treino')message.textContent='MODO TREINO · fichas virtuais sem valor monetário. ';format.disabled=true;amount.disabled=true;
+   myBetId=bet.apostaId;state=bet.gameState;if(bet.modoJogo==='treino')message.textContent='MODO TREINO · fichas virtuais sem valor monetário. Taxa 10%; 90% vai para o prêmio da partida. ';format.disabled=true;amount.disabled=true;
    describe();render();refresh();
    }catch(e){
    message.textContent=e.message;joinBtn.disabled=false;
