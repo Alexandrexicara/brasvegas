@@ -230,6 +230,19 @@ app.post('/api/admin/rodadas/:id/encerrar', async (req, res) => {
   } finally { client.release(); }
 });
 
+app.get('/api/admin/financeiro', async (req, res) => {
+  const adminToken = process.env.ADMIN_API_TOKEN;
+  if (!adminToken || req.headers['x-admin-token'] !== adminToken) return res.status(403).json({ erro:'Acesso administrativo negado.' });
+  try {
+    const conta = await pool.query('SELECT saldo_comissoes,atualizado_em FROM carteira_plataforma WHERE id=1');
+    const hoje = await pool.query("SELECT COALESCE(SUM(valor),0) AS total FROM movimentos_plataforma WHERE tipo='comissao_aposta' AND created_at >= date_trunc('day',NOW())");
+    const acumulado = await pool.query("SELECT COALESCE(SUM(valor),0) AS total FROM movimentos_plataforma WHERE tipo='comissao_aposta'");
+    res.json({ saldoComissoes:Number(conta.rows[0]?.saldo_comissoes || 0), comissoesHoje:Number(hoje.rows[0].total), comissoesAcumuladas:Number(acumulado.rows[0].total), atualizadoEm:conta.rows[0]?.atualizado_em || null });
+  } catch (e) {
+    res.status(500).json({ erro:'Não foi possível consultar o financeiro.' });
+  }
+});
+
 // Crédito manual removido: somente webhook/consulta autenticada do Sicoob poderá confirmar um Pix.
 app.post('/api/deposito', auth, (_req, res) => res.status(410).json({ erro:'Crédito direto desativado. As fichas só serão liberadas após confirmação do Pix pelo servidor.' }));
 app.post('/api/roleta/apostar', auth, (_req, res) => res.status(410).json({ erro:'A roleta agora utiliza rodadas compartilhadas. Atualize o aplicativo para apostar na rodada atual.' }));
