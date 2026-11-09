@@ -3,40 +3,93 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#100b08">
   <title>🎰 Salão de Jogos — BRASVEGAS</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body>
-<header>
-  <div class="logo">🎰 SALÃO DE JOGOS</div>
+<body class="pagina-salao">
+<header class="topo-salao">
+  <a class="logo" href="index.html">🎰 BRASVEGAS</a>
+  <div class="boas-vindas">BEM-VINDO AO SALÃO</div>
   <div class="saldo-header">💰 R$ <span id="mostrar-saldo">0,00</span></div>
   <div class="nav-botoes">
     <button class="btn btn-verde" onclick="abrirModalDeposito()">⬆️ DEPÓSITO</button>
     <button class="btn btn-preto" onclick="sair()">SAIR</button>
   </div>
 </header>
-<div class="container">
-  <h1 style="text-align:center; color:#ffd700; margin:30px 0;">🎰 ESCOLHA SEU JOGO</h1>
-  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:25px;">
-    <div style="background:#1a1a1a; border-radius:16px; padding:25px; text-align:center; border:2px solid #e50914; cursor:pointer;" onclick="window.location.href='roleta.html'">
-      <div style="font-size:60px;">🎡</div>
-      <h3 style="color:#e50914; font-size:24px;">ROLETA</h3>
-      <p style="color:#aaa; margin:10px 0;">Vermelho, Preto ou Verde</p>
-      <p style="color:#ffd700; font-weight:bold;">Prêmio até 35x</p>
-      <button class="btn btn-vermelho" style="margin-top:15px;">JOGAR AGORA</button>
+
+<main class="salao-conteudo">
+  <section class="salao-banner">
+    <div class="banner-luzes">✦ CASINO • BRASVEGAS • CASINO ✦</div>
+    <div class="banner-texto">
+      <span class="selo-salao">EXPERIÊNCIA BRASVEGAS</span>
+      <h1>SEU SALÃO DE JOGOS</h1>
+      <p>Escolha sua mesa, encontre seu jogo e aproveite o ambiente.</p>
+      <a href="#lista-jogos" class="btn btn-dourado">EXPLORAR JOGOS ↓</a>
     </div>
+    <div class="banner-ornamento" aria-hidden="true">♠ ♥ ♦ ♣</div>
+  </section>
+
+  <div class="faixa-categoria">
+    <div><span class="ponto-aceso"></span> SALÃO PRINCIPAL</div>
+    <span>ESCOLHA UMA ATRAÇÃO</span>
   </div>
-</div>
+
+  <section id="lista-jogos" class="grade-jogos" aria-label="Todos os jogos disponíveis">
+    <a class="cartao-jogo jogo-roleta" href="roleta.html">
+      <div class="jogo-arte"><span class="jogo-icone">🎡</span><span class="jogo-etiqueta">CLÁSSICO</span></div>
+      <div class="jogo-info"><h2>Roleta</h2><p>Escolha uma cor ou número e acompanhe o giro da roda.</p><span class="link-jogar">ENTRAR NA MESA <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-blackjack" href="blackjack.html">
+      <div class="jogo-arte"><span class="jogo-icone">🃏</span><span class="jogo-etiqueta">CARTAS</span></div>
+      <div class="jogo-info"><h2>Blackjack 21</h2><p>Chegue o mais perto de 21 sem ultrapassar.</p><span class="link-jogar">ENTRAR NA MESA <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-bacara" href="bacara.html">
+      <div class="jogo-arte"><span class="jogo-icone">♦️</span><span class="jogo-etiqueta">CARTAS</span></div>
+      <div class="jogo-info"><h2>Bacará</h2><p>Escolha entre jogador, banca ou empate.</p><span class="link-jogar">ENTRAR NA MESA <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-poquer" href="poquer.html">
+      <div class="jogo-arte"><span class="jogo-icone">♠️</span><span class="jogo-etiqueta">ESTRATÉGIA</span></div>
+      <div class="jogo-info"><h2>Pôquer</h2><p>Confira suas cartas e jogue sua rodada.</p><span class="link-jogar">ENTRAR NA MESA <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-slots" href="caca-niqueis.html">
+      <div class="jogo-arte"><span class="jogo-icone">🎰</span><span class="jogo-etiqueta">SLOTS</span></div>
+      <div class="jogo-info"><h2>Caça-Níqueis</h2><p>Gire os rolos e confira as combinações.</p><span class="link-jogar">ENTRAR NO JOGO <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-frutas" href="frutas.html">
+      <div class="jogo-arte"><span class="jogo-icone">🍒</span><span class="jogo-etiqueta">SLOTS</span></div>
+      <div class="jogo-info"><h2>Frutas</h2><p>Um jogo colorido com símbolos clássicos.</p><span class="link-jogar">ENTRAR NO JOGO <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-dados" href="dados.html">
+      <div class="jogo-arte"><span class="jogo-icone">🎲</span><span class="jogo-etiqueta">DADOS</span></div>
+      <div class="jogo-info"><h2>Dados</h2><p>Faça sua escolha e acompanhe o resultado.</p><span class="link-jogar">ENTRAR NA MESA <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-craps" href="craps.html">
+      <div class="jogo-arte"><span class="jogo-icone">🎲</span><span class="jogo-etiqueta">MESA</span></div>
+      <div class="jogo-info"><h2>Craps</h2><p>Entre na mesa e confira as opções de jogada.</p><span class="link-jogar">ENTRAR NA MESA <b>→</b></span></div>
+    </a>
+    <a class="cartao-jogo jogo-parede" href="parede-sorte.html">
+      <div class="jogo-arte"><span class="jogo-icone">🍀</span><span class="jogo-etiqueta">ESPECIAL</span></div>
+      <div class="jogo-info"><h2>Parede da Sorte</h2><p>Escolha sua posição e descubra o resultado.</p><span class="link-jogar">ENTRAR NO JOGO <b>→</b></span></div>
+    </a>
+  </section>
+
+  <section class="salao-ajuda">
+    <span>♣</span><div><strong>Explore o salão</strong><p>Todos os jogos disponíveis estão organizados aqui. Toque em qualquer cartão para abrir a página do jogo.</p></div>
+  </section>
+</main>
+
 <div id="modal-deposito" class="modal">
   <div class="modal-content">
     <h3>⬆️ FAZER DEPÓSITO</h3>
-    <input type="number" id="valor-deposito" placeholder="Valor em R$" min="1">
+    <input type="number" id="valor-deposito" placeholder="Valor em R$" min="1" step="0.01">
     <div class="botoes-modal">
       <button class="btn btn-preto" onclick="fecharModalDeposito()">Cancelar</button>
       <button class="btn btn-verde" onclick="confirmarDeposito()">Confirmar</button>
     </div>
   </div>
 </div>
+<footer>© 2026 BRASVEGAS — Proibido para menores de 18 anos. Jogue com moderação.</footer>
 <script src="js/app.js"></script>
 </body>
 </html>
