@@ -149,7 +149,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.get('/api/configuracao', (_req, res) => {
-  res.json({ taxaPlataforma: TAXA_PLATAFORMA, jogos: ['roleta','blackjack','bacara','caca-niqueis','craps','dados','frutas','parede-sorte','poquer','sinuca'], apostasReaisHabilitadas: APOSTAS_REAIS_HABILITADAS });
+  res.json({ taxaPlataforma:TAXA_PLATAFORMA, jogos:['roleta','blackjack','bacara','caca-niqueis','craps','dados','frutas','parede-sorte','poquer','sinuca'], apostasReaisHabilitadas:APOSTAS_REAIS_HABILITADAS, modoJogo:APOSTAS_REAIS_HABILITADAS?'real':'treino' });
 });
 
 app.post('/api/cadastro', async (req, res) => {
@@ -192,8 +192,8 @@ app.post('/api/login', async (req, res) => {
     if (!user || user.status !== 'ativo' || !await bcrypt.compare(senha || '', user.senha))
       return res.status(401).json({ erro: 'E-mail ou senha incorretos.' });
     const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '12h' });
-    const wallet = await pool.query('SELECT saldo_disponivel,saldo_reservado FROM carteiras WHERE usuario_id=$1', [user.id]);
-    res.json({ sucesso: true, token, usuario: { id:user.id, nome:user.nome_completo, email:user.email, saldo:Number(wallet.rows[0]?.saldo_disponivel || 0) } });
+    const wallet = await pool.query('SELECT saldo_disponivel,saldo_reservado,saldo_treino FROM carteiras WHERE usuario_id=$1', [user.id]);
+    res.json({ sucesso:true, token, usuario:{id:user.id,nome:user.nome_completo,email:user.email,saldo:Number(wallet.rows[0]?.saldo_disponivel||0),saldoTreino:Number(wallet.rows[0]?.saldo_treino||0),modoJogo:APOSTAS_REAIS_HABILITADAS?'real':'treino'} });
   } catch (e) {
     console.error('Login:', e.message);
     res.status(500).json({ erro: 'Falha ao entrar.' });
@@ -202,11 +202,11 @@ app.post('/api/login', async (req, res) => {
 
 app.get('/api/usuario', auth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT u.id,u.nome_completo,u.email,c.saldo_disponivel,c.saldo_reservado FROM usuarios u JOIN carteiras c ON c.usuario_id=u.id WHERE u.id=$1',
+    'SELECT u.id,u.nome_completo,u.email,c.saldo_disponivel,c.saldo_reservado,c.saldo_treino FROM usuarios u JOIN carteiras c ON c.usuario_id=u.id WHERE u.id=$1',
     [req.usuarioId]
   );
   if (!rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
-  res.json({ id:rows[0].id, nome_completo:rows[0].nome_completo, email:rows[0].email, saldo:Number(rows[0].saldo_disponivel), saldoReservado:Number(rows[0].saldo_reservado) });
+  res.json({id:rows[0].id,nome_completo:rows[0].nome_completo,email:rows[0].email,saldo:Number(rows[0].saldo_disponivel),saldoReservado:Number(rows[0].saldo_reservado),saldoTreino:Number(rows[0].saldo_treino),modoJogo:APOSTAS_REAIS_HABILITADAS?'real':'treino'});
 });
 
 app.post('/api/pix/cobrancas', auth, async (req, res) => {
@@ -279,17 +279,18 @@ app.get('/api/jogos/:codigo/rodada-atual', auth, async (req, res) => {
     await client.query('BEGIN');
     const jogo = await client.query('SELECT id,codigo,nome FROM jogos WHERE codigo=$1 AND ativo=true FOR SHARE', [req.params.codigo]);
     if (!jogo.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ erro:'Jogo não encontrado.' }); }
-    const j = jogo.rows[0];
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['brasvegas-round:'+j.id]);
-    let rodada = await client.query("SELECT id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em FROM rodadas WHERE jogo_id=$1 AND status='aberta' ORDER BY numero DESC LIMIT 1", [j.id]);
+    const j=jogo.rows[0];
+    const modo=APOSTAS_REAIS_HABILITADAS?'real':'treino';
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['brasvegas-round:'+j.id+':'+modo]);
+    let rodada=await client.query("SELECT id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo FROM rodadas WHERE jogo_id=$1 AND modo=$2 AND status='aberta' ORDER BY numero DESC LIMIT 1",[j.id,modo]);
     if (!rodada.rows[0]) {
-      const carry = await client.query("SELECT COALESCE(SUM(premio_disponivel),0) AS total FROM rodadas WHERE jogo_id=$1 AND status='encerrada'", [j.id]);
+      const carry=await client.query("SELECT COALESCE(SUM(premio_disponivel),0) AS total FROM rodadas WHERE jogo_id=$1 AND modo=$2 AND status='encerrada'",[j.id,modo]);
       const numero = await client.query('SELECT COALESCE(MAX(numero),0)+1 AS n FROM rodadas WHERE jogo_id=$1', [j.id]);
-      rodada = await client.query("INSERT INTO rodadas(jogo_id,numero,status,premio_disponivel) VALUES($1,$2,'aberta',$3) RETURNING id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em", [j.id, numero.rows[0].n, carry.rows[0].total]);
-      if (Number(carry.rows[0].total)>0) await client.query("UPDATE rodadas SET premio_disponivel=0 WHERE jogo_id=$1 AND status='encerrada'", [j.id]);
+      rodada=await client.query("INSERT INTO rodadas(jogo_id,numero,status,modo,premio_disponivel) VALUES($1,$2,'aberta',$3,$4) RETURNING id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo",[j.id,numero.rows[0].n,modo,carry.rows[0].total]);
+      if(Number(carry.rows[0].total)>0)await client.query("UPDATE rodadas SET premio_disponivel=0 WHERE jogo_id=$1 AND modo=$2 AND status='encerrada'",[j.id,modo]);
     }
     await client.query('COMMIT');
-    res.json({ jogo:j, rodada:rodada.rows[0], taxaPlataformaPercentual:TAXA_PLATAFORMA });
+    res.json({jogo:j,rodada:rodada.rows[0],taxaPlataformaPercentual:TAXA_PLATAFORMA,modoJogo:modo});
   } catch(e) {
     await client.query('ROLLBACK');
     console.error('Abrir rodada:',e.message);
@@ -300,12 +301,12 @@ app.get('/api/jogos/:codigo/rodada-atual', auth, async (req, res) => {
 app.get('/api/rodadas/:id',auth,async(req,res)=>{
   try{
     const q=await pool.query(
-      "SELECT r.id,r.numero,r.status,r.resultado,r.total_apostado,r.taxa_total,r.premio_disponivel,r.inicio_em,r.encerrada_em,a.id AS aposta_id,a.status AS aposta_status,a.premio_recebido,a.selecao FROM rodadas r LEFT JOIN apostas a ON a.rodada_id=r.id AND a.usuario_id=$2 WHERE r.id=$1 ORDER BY a.created_at DESC LIMIT 1",
+      "SELECT r.id,r.numero,r.status,r.modo,r.resultado,r.total_apostado,r.taxa_total,r.premio_disponivel,r.inicio_em,r.encerrada_em,a.id AS aposta_id,a.status AS aposta_status,a.premio_recebido,a.selecao FROM rodadas r LEFT JOIN apostas a ON a.rodada_id=r.id AND a.usuario_id=$2 WHERE r.id=$1 ORDER BY a.created_at DESC LIMIT 1",
       [req.params.id,req.usuarioId]
     );
     if(!q.rows[0])return res.status(404).json({erro:'Rodada não encontrada.'});
     const row=q.rows[0];
-    res.json({id:row.id,numero:row.numero,status:row.status,resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
+    res.json({id:row.id,numero:row.numero,status:row.status,modo:row.modo,resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
   }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar a rodada.'});}
 });
 
