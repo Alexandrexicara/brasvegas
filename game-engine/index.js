@@ -226,16 +226,19 @@ function blackjackAction(state,action) {
   else throw new Error('Ação inválida. Use hit ou stand.');
   return next;
 }
-function startPokerGame() {
-  const cards=shuffle(deck());
+function startPokerGame(sharedDeck=null) {
+  const cards=sharedDeck?[...sharedDeck]:shuffle(deck());
+  if(cards.length<5)throw new Error('Não há cartas suficientes para iniciar outra mão nesta mesa.');
   return {hand:cards.splice(0,5),deck:cards,status:'draw'};
 }
-function drawPokerCards(state,indices=[]) {
+function drawPokerCards(state,indices=[],sharedDeck=null) {
   const next=JSON.parse(JSON.stringify(state));
+  if(sharedDeck)next.deck=[...sharedDeck];
   if(next.status!=='draw') throw new Error('Esta mão de pôquer já foi encerrada.');
   if(!Array.isArray(indices)||indices.length>5||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||i<0||i>4)) throw new Error('Seleção de cartas inválida.');
   for(const i of indices) {if(!next.deck.length)throw new Error('Baralho sem cartas.');next.hand[i]=next.deck.pop();}
   next.status='done';next.rank=pokerRank(next.hand);
+  if(sharedDeck)return {state:{...next,deck:[]},remainingDeck:next.deck};
   return next;
 }
 
