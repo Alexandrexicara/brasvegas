@@ -37,3 +37,41 @@ test('apostas de dados validam soma e duplas',()=>{
  assert.equal(g.evaluateDiceBet({type:'doubles'},{dice:[4,4],sum:8}),true);
  assert.equal(g.evaluateDiceBet({type:'sum',value:13},{dice:[6,6],sum:12}),false);
 });
+
+test('valida seleções por jogo sem aceitar valores fora das regras',()=>{
+ assert.equal(g.validateBetSelection('roleta',{tipo:'numero',numero:36}),true);
+ assert.equal(g.validateBetSelection('roleta',{tipo:'numero',numero:37}),false);
+ assert.equal(g.validateBetSelection('bacara',{tipo:'empate'}),true);
+ assert.equal(g.validateBetSelection('craps',{tipo:'naopassar'}),true);
+ assert.equal(g.validateBetSelection('dados',{type:'sum',value:'7'}),true);
+ assert.equal(g.validateBetSelection('blackjack',{actions:['hit','stand']}),true);
+ assert.equal(g.validateBetSelection('blackjack',{actions:['hack']}),false);
+ assert.equal(g.validateBetSelection('poquer',{type:'draw'}),true);
+ assert.equal(g.validateBetSelection('frutas',{type:'spin'}),true);
+ assert.equal(g.validateBetSelection('parede-sorte',{type:'drop'}),true);
+});
+test('resolução de rodada gera resultado para os nove jogos',()=>{
+ const samples={
+  roleta:[{id:'r1',selecao:{tipo:'vermelho'}}],
+  bacara:[{id:'b1',selecao:{tipo:'jogador'}}],
+  craps:[{id:'c1',selecao:{tipo:'passar'}}],
+  dados:[{id:'d1',selecao:{type:'sum',value:7}}],
+  blackjack:[{id:'bj1',selecao:{actions:['stand']}}],
+  poquer:[{id:'p1',selecao:{type:'draw'}}],
+  'caca-niqueis':[{id:'s1',selecao:{type:'spin'}}],
+  frutas:[{id:'f1',selecao:{type:'spin'}}],
+  'parede-sorte':[{id:'w1',selecao:{type:'drop'}}]
+ };
+ for(const [code,bets] of Object.entries(samples)){
+  const result=g.resolveRound(code,bets);
+  assert.ok(result.result);
+  assert.ok(Array.isArray(result.winnerIds));
+  assert.ok(result.byBetId);
+ }
+});
+test('bacará e blackjack geram cartas de baralho válido',()=>{
+ const b=g.dealBaccarat(),bj=g.resolveBlackjackTable([{id:'x',selecao:{actions:['stand']}}]);
+ assert.ok(b.player.length>=2&&b.banker.length>=2);
+ assert.equal(bj.byBetId.x.player.length>=2,true);
+ assert.equal(bj.byBetId.x.dealer.length>=2,true);
+});
