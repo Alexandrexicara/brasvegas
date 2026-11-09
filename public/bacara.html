@@ -66,8 +66,9 @@ btn.addEventListener('click',async()=>{
   if(!natural&&comprarBanca(pb,terceira===null?null:valor(terceira))){b.push(bar.pop());banCartas.appendChild(carta(b[2]));await new Promise(r=>setTimeout(r,280))}
   pj=soma(j);pb=soma(b);jogPts.textContent=pj;banPts.textContent=pb;
   const vencedor=pj>pb?'jogador':pb>pj?'banco':'empate';let mensagem='';
-  if(vencedor==='empate'){saldo+=aposta;mensagem='EMPATE — aposta devolvida.'}
-  else if(vencedor===alvo){const lucro=aposta*(alvo==='banco'?.95:alvo==='empate'?8:1);saldo+=aposta+lucro;mensagem='VOCÊ GANHOU! '+vencedor.toUpperCase()+' · lucro R$ '+lucro.toFixed(2).replace('.',',')}
+  if(vencedor==='empate'&&alvo==='empate'){const lucro=aposta*8;saldo+=aposta+lucro;mensagem='VOCÊ GANHOU! EMPATE · lucro R$ '+lucro.toFixed(2).replace('.',',')}
+  else if(vencedor==='empate'){saldo+=aposta;mensagem='EMPATE — aposta devolvida.'}
+  else if(vencedor===alvo){const lucro=aposta*(alvo==='banco'?.95:1);saldo+=aposta+lucro;mensagem='VOCÊ GANHOU! '+vencedor.toUpperCase()+' · lucro R$ '+lucro.toFixed(2).replace('.',',')}
   else mensagem='Vencedor: '+vencedor.toUpperCase()+'. Você não pontuou nesta mão.';
   res.textContent=mensagem;res.style.color=vencedor===alvo?'#39ff14':vencedor==='empate'?'#ffd700':'#ff7777';atualizar();
   window.BrasVegasAudio?.play(vencedor===alvo?'win':'lose');
