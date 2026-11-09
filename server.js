@@ -113,7 +113,7 @@ function auth(req, res, next) {
     return res.status(401).json({ erro: 'Sessão inválida ou expirada.' });
   }
 }
-function dinheiro(v) {
+function canonicalJson(value) { if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']'; if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k) + ':' + canonicalJson(value[k])).join(',') + '}'; return JSON.stringify(value); }\nfunction dinheiro(v) {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 && n <= 1000000 ? Math.round(n * 100) / 100 : null;
 }
@@ -324,7 +324,7 @@ app.post('/api/admin/rodadas/:id/encerrar', async (req, res) => {
     const r = await client.query("SELECT * FROM rodadas WHERE id=$1 FOR UPDATE", [req.params.id]);
     if (!r.rows[0] || r.rows[0].status !== 'aberta') throw new Error('Rodada não está aberta.');
     const apostas = await client.query("SELECT * FROM apostas WHERE rodada_id=$1 AND status='reservada' FOR UPDATE", [req.params.id]);
-    const vencedoras = apostas.rows.filter(a => JSON.stringify(a.selecao) === JSON.stringify(resultado));
+    const resultadoCanonico = canonicalJson(resultado);\n    const vencedoras = apostas.rows.filter(a => canonicalJson(a.selecao) === resultadoCanonico);
     const totalVencedor = vencedoras.reduce((s,a)=>s+Number(a.valor_para_premio),0);
     const premioTotal = Number(r.rows[0].premio_disponivel);
     if (totalVencedor > 0) {
@@ -337,7 +337,10 @@ app.post('/api/admin/rodadas/:id/encerrar', async (req, res) => {
           await client.query("UPDATE apostas SET status='paga',premio_recebido=$1 WHERE id=$2", [premio,a.id]);
           await client.query("INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'premio_credito',$3,$4,$5,$6,$7,'rodada',$8,$9,'Prêmio da rodada compartilhada')", [w.rows[0].id,a.usuario_id,premio,disp,disp+premio,reserv,reserv-Number(a.valor),req.params.id,'payout:'+a.id]);
         } else {
-          await client.query("UPDATE carteiras SET saldo_reservado=saldo_reservado-$1,updated_at=NOW() WHERE usuario_id=$2", [Number(a.valor),a.usuario_id]);
+          const w = await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE', [a.usuario_id]);
+          const disp = Number(w.rows[0].saldo_disponivel), reserv = Number(w.rows[0].saldo_reservado);
+          await client.query("UPDATE carteiras SET saldo_reservado=saldo_reservado-$1,updated_at=NOW() WHERE id=$2", [Number(a.valor),w.rows[0].id]);
+          await client.query("INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_liquidada',$3,$4,$4,$5,$6,'rodada',$7,$8,'Liquidação de aposta perdedora')", [w.rows[0].id,a.usuario_id,Number(a.valor),disp,reserv,reserv-Number(a.valor),req.params.id,'loss:'+a.id]);
           await client.query("UPDATE apostas SET status='perdedora' WHERE id=$1", [a.id]);
         }
       }
