@@ -37,7 +37,7 @@
  async function carregarSaldo(){
   if(!token)return;
   const user=await api('/usuario');
-  if(balance)balance.textContent=Number(user.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(balance)balance.textContent=Number(user.modoJogo==='treino'?user.saldoTreino:user.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
  };
  async function jogar(){
   if(busy)return;
