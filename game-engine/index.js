@@ -115,7 +115,7 @@ function bankerShouldDraw(bankerTotal, playerThirdCardValue) {
   return false;
 }
 function dealBaccarat() {
-  const cards=shuffle(deck());
+  const cards=shuffle(Array.from({length:8},()=>deck()).flat());
   const player=[cards.pop(),cards.pop()],banker=[cards.pop(),cards.pop()];
   let p=baccaratTotal(player),b=baccaratTotal(banker),playerThird=null;
   if(p<8&&b<8) {
