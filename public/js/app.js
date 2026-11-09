@@ -1,7 +1,17 @@
-const API_BASE = '/api';
+const API_BASE = 'https://brasvegas.onrender.com/api';
 let token = localStorage.getItem('brasvegas-token') || '';
 let usuario = JSON.parse(localStorage.getItem('brasvegas-user') || 'null');
 let apostaEscolhida = null;
+
+function alternarVisibilidadeSenha(id, botao) {
+  const campo = document.getElementById(id);
+  if (!campo) return;
+  const mostrar = campo.type === 'password';
+  campo.type = mostrar ? 'text' : 'password';
+  botao.textContent = mostrar ? '🙈' : '👁️';
+  botao.setAttribute('aria-label', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+  botao.setAttribute('title', mostrar ? 'Ocultar senha' : 'Mostrar senha');
+}
 
 function salvarSessao(t, u) {
   token = t; usuario = u;
@@ -29,20 +39,31 @@ async function fazerLogin() {
 }
 
 async function fazerCadastro() {
-  const nome = document.getElementById('nome-completo')?.value;
-  const cpf = document.getElementById('cpf')?.value;
+  const nome = document.getElementById('nome-completo')?.value.trim();
+  const cpf = document.getElementById('cpf')?.value.trim();
   const nasc = document.getElementById('data-nascimento')?.value;
-  const email = document.getElementById('email-cadastro')?.value;
-  const tel = document.getElementById('telefone')?.value;
+  const email = document.getElementById('email-cadastro')?.value.trim();
+  const tel = document.getElementById('telefone')?.value.trim();
   const senha = document.getElementById('senha-cadastro')?.value;
   if (!nome||!cpf||!nasc||!email||!senha) return alert('Preencha todos os campos');
-  const res = await fetch(`${API_BASE}/cadastro`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nomeCompleto:nome, cpf, dataNascimento:nasc, email, telefone:tel, senha })
-  });
-  const d = await res.json();
-  if (d.erro) return alert(d.erro);
-  alert(d.mensagem+' — Faça login!'); window.location.href='login.html';
+  const botao = document.querySelector('.auth-container button[onclick="fazerCadastro()"]');
+  if (botao) { botao.disabled = true; botao.textContent = 'ENVIANDO...'; }
+  try {
+    const res = await fetch(`${API_BASE}/cadastro`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nomeCompleto:nome, cpf, dataNascimento:nasc, email, telefone:tel, senha })
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.erro || `Falha no servidor (HTTP ${res.status})`);
+    if (d.erro) return alert(d.erro);
+    if (!d.sucesso) throw new Error(d.mensagem || 'Não foi possível concluir o cadastro.');
+    alert((d.mensagem || 'Cadastro realizado!')+' — Faça login!');
+    window.location.href='login.html';
+  } catch (erro) {
+    alert('Não foi possível realizar o cadastro: ' + (erro.message || 'verifique sua conexão e tente novamente.'));
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = 'CADASTRAR'; }
+  }
 }
 
 function sair() { localStorage.clear(); window.location.href='index.html'; }
