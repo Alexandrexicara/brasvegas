@@ -152,5 +152,6 @@ INSERT INTO jogos(codigo,nome,modalidade,participacao_aberta) VALUES
  ('dados','Dados','cassino',TRUE),
  ('frutas','Frutas','cassino',TRUE),
  ('parede-sorte','Parede da Sorte','cassino',TRUE),
- ('poquer','Pôquer','cassino',TRUE)
+ ('poquer','Pôquer','cassino',TRUE),
+ ('sinuca','Sinuca / Bilhar Multiplayer','habilidade',TRUE)
 ON CONFLICT(codigo) DO NOTHING;
