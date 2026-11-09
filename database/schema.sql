@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS carteiras (
   usuario_id TEXT NOT NULL UNIQUE REFERENCES usuarios(id),
   saldo_disponivel NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (saldo_disponivel >= 0),
   saldo_reservado NUMERIC(14,2) NOT NULL DEFAULT 0 CHECK (saldo_reservado >= 0),
+  saldo_treino NUMERIC(14,2) NOT NULL DEFAULT 1000.00 CHECK (saldo_treino >= 0),
   moeda CHAR(3) NOT NULL DEFAULT 'BRL',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -37,6 +38,20 @@ CREATE TABLE IF NOT EXISTS lancamentos_carteira (
   descricao TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+CREATE TABLE IF NOT EXISTS lancamentos_treino (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  usuario_id TEXT NOT NULL REFERENCES usuarios(id),
+  tipo TEXT NOT NULL CHECK (tipo IN ('aposta','premio','ajuste')),
+  valor NUMERIC(14,2) NOT NULL CHECK (valor > 0),
+  saldo_antes NUMERIC(14,2) NOT NULL,
+  saldo_depois NUMERIC(14,2) NOT NULL,
+  referencia_id UUID,
+  chave_idempotencia TEXT UNIQUE,
+  descricao TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_lancamentos_treino_usuario_data ON lancamentos_treino(usuario_id,created_at DESC);
+
 CREATE TABLE IF NOT EXISTS jogos (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   codigo TEXT NOT NULL UNIQUE,
@@ -52,6 +67,7 @@ CREATE TABLE IF NOT EXISTS rodadas (
   jogo_id UUID NOT NULL REFERENCES jogos(id),
   numero BIGINT NOT NULL,
   status TEXT NOT NULL DEFAULT 'aberta' CHECK (status IN ('aberta','encerrada','apurando','paga','cancelada')),
+  modo TEXT NOT NULL DEFAULT 'treino' CHECK (modo IN ('treino','real')),
   inicio_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   encerrada_em TIMESTAMPTZ,
   resultado JSONB,
@@ -73,6 +89,7 @@ CREATE TABLE IF NOT EXISTS apostas (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_rodadas_jogo_status ON rodadas(jogo_id,status);
+CREATE INDEX IF NOT EXISTS idx_rodadas_jogo_modo_status ON rodadas(jogo_id,modo,status);
 CREATE INDEX IF NOT EXISTS idx_apostas_rodada ON apostas(rodada_id);
 CREATE INDEX IF NOT EXISTS idx_apostas_usuario_data ON apostas(usuario_id,created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_lancamentos_usuario_data ON lancamentos_carteira(usuario_id,created_at DESC);
