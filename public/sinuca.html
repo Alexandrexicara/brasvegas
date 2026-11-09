@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sinuca / Bilhar — BrasVegas</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07130e;color:#f5f5f5;font-family:Arial,sans-serif;padding:16px}
+header{max-width:1050px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+a,button{cursor:pointer}a{color:#f4d36b;text-decoration:none}
+main{max-width:1050px;margin:18px auto;background:#10251b;border:1px solid #b18b35;border-radius:16px;padding:16px}
+h1{margin:4px 0;color:#f4d36b}p{color:#c8d5ce}
+#placar{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;margin:12px 0}
+.jogador{background:#0a1a12;border:1px solid #536e5d;border-radius:10px;padding:10px;min-width:150px}
+.jogador.vez{border:2px solid #f4d36b}
+canvas{display:block;width:100%;height:auto;border-radius:12px;background:#07532e;touch-action:none}
+.controles{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px}
+button,select,input{padding:10px 13px;border-radius:8px;border:1px solid #bd9a43;background:#142c20;color:white}
+button{background:#bd8d25;color:#171006;font-weight:bold}
+#mensagem{min-height:28px;color:#f4d36b;font-weight:bold;margin-top:12px}
+small{color:#aabbb0}
+</style></head><body>
+<header><a href="salao.html">← Voltar ao salão</a><strong>BRASVEGAS · BILHAR</strong></header>
+<main>
+<h1>🎱 Sinuca / Bilhar</h1>
+<p>Partida local de demonstração com física de bolas, colisões, caçapas, faltas e alternância de turnos. A sincronização online e as apostas multiplayer serão conectadas ao servidor na próxima etapa.</p>
+<div class="controles">
+<label>Formato <select id="formato"><option value="2">2 jogadores</option><option value="4">4 jogadores · duplas</option></select></label>
+<label>Força <input id="forca" type="range" min="1" max="100" value="55"></label>
+<button id="tacada">DAR TACADA</button><button id="reiniciar">NOVA PARTIDA</button>
+</div>
+<div id="placar"></div>
+<canvas id="mesa" width="1000" height="560" aria-label="Mesa de bilhar interativa"></canvas>
+<div id="mensagem">Mire tocando ou clicando na mesa. A linha mostra a direção da tacada.</div>
+<small>Regras simplificadas de bola 8: lisas (1–7), listradas (9–15), bola 8 e branca. A partida termina quando a bola 8 é encaçapada; encaçapá-la antes de limpar seu grupo causa derrota.</small>
+</main>
+<script>
+(()=>{
+const canvas=document.getElementById('mesa'),ctx=canvas.getContext('2d'),msg=document.getElementById('mensagem');
+const W=1000,H=560,R=13,friction=.986,pockets=[[28,28],[500,22],[972,28],[28,532],[500,538],[972,532]];
+let balls=[],players=[],turn=0,aim={x:800,y:280},moving=false,firstHit=null,turnPots=[],scratch=false,gameOver=false,drag=false;
+const names=['Jogador 1','Jogador 2','Jogador 3','Jogador 4'];
+function setup(){
+ const n=Number(document.getElementById('formato').value);players=Array.from({length:n},(_,i)=>({name:names[i],group:null}));
+ turn=0;gameOver=false;moving=false;firstHit=null;turnPots=[];scratch=false;
+ balls=[{id:0,x:250,y:280,vx:0,vy:0,group:'cue',pocketed:false}];
+ const rack=[];for(let row=0;row<5;row++)for(let col=0;col<=row;col++){const id=rack.length+1;rack.push({id,x:690+row*23,y:280+(col-row/2)*27,vx:0,vy:0,group:id===8?'eight':id<=7?'solid':'stripe',pocketed:false});}
+ // Triangular rack, with the eight ball centered.
+ const eight=rack.find(b=>b.id===8);if(eight){eight.x=690+2*23;eight.y=280;}
+ balls.push(...rack);aim={x:800,y:280};render();
+ msg.textContent='Partida iniciada. Jogador 1 começa.';
+}
+function current(){return players[turn]}
+function drawBall(b){ctx.beginPath();ctx.arc(b.x,b.y,R,0,Math.PI*2);ctx.fillStyle=b.id===0?'#fff':b.id===8?'#080808':b.group==='solid'?['','#f4d03f','#2471a3','#c0392b','#7d3c98','#e67e22','#16a085','#922b21'][b.id]:'#f4f4f4';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#ddd';ctx.stroke();if(b.group==='stripe'){ctx.save();ctx.beginPath();ctx.arc(b.x,b.y,R-1,0,Math.PI*2);ctx.clip();ctx.fillStyle=['','#f4d03f','#2471a3','#c0392b','#7d3c98','#e67e22','#16a085','#922b21'][b.id-8]||'#ddd';ctx.fillRect(b.x-R,b.y-5,R*2,10);ctx.restore();}ctx.fillStyle=b.id===8?'white':'#111';ctx.font='10px Arial';ctx.textAlign='center';ctx.fillText(b.id===0?'':b.id,b.x,b.y+3);}
+function render(){
+ ctx.clearRect(0,0,W,H);ctx.fillStyle='#07532e';ctx.fillRect(0,0,W,H);ctx.strokeStyle='#9b7136';ctx.lineWidth=30;ctx.strokeRect(15,15,W-30,H-30);
+ pockets.forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,23,0,Math.PI*2);ctx.fillStyle='#020604';ctx.fill();});
+ balls.filter(b=>!b.pocketed).forEach(drawBall);
+ const cue=balls[0];if(cue&&!moving&&!gameOver){const dx=aim.x-cue.x,dy=aim.y-cue.y,len=Math.hypot(dx,dy)||1;ctx.beginPath();ctx.moveTo(cue.x,cue.y);ctx.lineTo(cue.x+dx/len*150,cue.y+dy/len*150);ctx.strokeStyle='rgba(255,255,255,.8)';ctx.setLineDash([8,7]);ctx.lineWidth=2;ctx.stroke();ctx.setLineDash([]);}
+ document.getElementById('placar').innerHTML=players.map((p,i)=>'<div class="jogador '+(i===turn&&!gameOver?'vez':'')+'"><b>'+p.name+'</b><br>'+(p.group==='solid'?'Lisas':p.group==='stripe'?'Listradas':'Grupo ainda aberto')+(i===turn?' · SUA VEZ':'')+'</div>').join('');
+}
+function pocket(b){const p=pockets.find(([x,y])=>Math.hypot(b.x-x,b.y-y)<25);if(!p)return false;b.pocketed=true;if(b.id===0)scratch=true;else turnPots.push(b);return true;}
+function physics(){
+ let active=false;
+ for(const b of balls){if(b.pocketed)continue;b.x+=b.vx;b.y+=b.vy;b.vx*=friction;b.vy*=friction;if(Math.abs(b.vx)+Math.abs(b.vy)>.08)active=true;else b.vx=b.vy=0;
+ if(b.x<R+30||b.x>W-R-30)b.vx*=-.92;if(b.y<R+30||b.y>H-R-30)b.vy*=-.92;b.x=Math.max(R+30,Math.min(W-R-30,b.x));b.y=Math.max(R+30,Math.min(H-R-30,b.y));pocket(b);}
+ for(let i=0;i<balls.length;i++)for(let j=i+1;j<balls.length;j++){const a=balls[i],b=balls[j];if(a.pocketed||b.pocketed)continue;let dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.001;if(d<2*R){if(a.id===0&&b.id!==8)firstHit=firstHit||b;const overlap=2*R-d,nx=dx/d,ny=dy/d;a.x-=nx*overlap/2;a.y-=ny*overlap/2;b.x+=nx*overlap/2;b.y+=ny*overlap/2;const rel=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(rel>0){const impulse=rel*.96;a.vx-=impulse*nx;a.vy-=impulse*ny;b.vx+=impulse*nx;b.vy+=impulse*ny;}}}
+ if(active){render();requestAnimationFrame(physics);}else{moving=false;finishTurn();render();}
+}
+function finishTurn(){
+ if(gameOver)return;
+ const p=current(),own=p.group?turnPots.some(b=>b.group===p.group):turnPots.some(b=>b.group==='solid'||b.group==='stripe');
+ const eight=turnPots.some(b=>b.id===8);
+ const remaining=balls.filter(b=>!b.pocketed&&b.group===p.group).length;
+ if(eight){gameOver=true;const won=!!p.group&&remaining===0&&!scratch&&firstHit?.group===p.group;msg.textContent=won?p.name+' venceu!':'Bola 8 encaçapada fora da hora ou com falta. '+p.name+' perdeu.';return;}
+ if(!p.group){const first=turnPots.find(b=>b.group==='solid'||b.group==='stripe');if(first){p.group=first.group;const mate=players.length===4?(turn+2)%4:null;if(mate!==null)players[mate].group=first.group;const other=first.group==='solid'?'stripe':'solid';players.forEach((x,i)=>{if(x.group===null&&i!==mate)x.group=other;});}}
+ if(scratch||!own){turn=(turn+1)%players.length;}
+ if(scratch){const cue=balls[0];cue.pocketed=false;cue.x=250;cue.y=280;cue.vx=cue.vy=0;msg.textContent='Falta: bola branca encaçapada. Próximo jogador joga.';}
+ else msg.textContent=own?'Bola encaçapada: continua jogando.':'Sem bola encaçapada: troca de vez.';
+ firstHit=null;turnPots=[];scratch=false;
+}
+function shoot(){if(moving||gameOver)return;const cue=balls[0],dx=aim.x-cue.x,dy=aim.y-cue.y,len=Math.hypot(dx,dy);if(len<8)return;const power=Number(document.getElementById('forca').value)/100*17;cue.vx=dx/len*power;cue.vy=dy/len*power;moving=true;firstHit=null;turnPots=[];scratch=false;requestAnimationFrame(physics);}
+canvas.addEventListener('pointerdown',e=>{if(moving||gameOver)return;const r=canvas.getBoundingClientRect();aim={x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};drag=true;render();});
+canvas.addEventListener('pointermove',e=>{if(!drag||moving||gameOver)return;const r=canvas.getBoundingClientRect();aim={x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};render();});
+canvas.addEventListener('pointerup',()=>{drag=false;});
+document.getElementById('tacada').addEventListener('click',shoot);
+document.getElementById('reiniciar').addEventListener('click',setup);
+document.getElementById('formato').addEventListener('change',setup);
+setup();
+})();
+</script></body></html>
