@@ -72,7 +72,7 @@
   try{
    const current=await api('/jogos/'+code+'/rodada-atual');
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:selection()})});
-   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Aposta registrada na rodada '+current.rodada.numero+'. Aguardando resultado...';
+   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Aposta registrada na rodada '+current.rodada.numero+'. Taxa 10%; 90% vai para o prêmio compartilhado. Aguardando resultado...';
    let final=null;
    for(let i=0;i<25;i++){
     await new Promise(resolve=>setTimeout(resolve,2000));
