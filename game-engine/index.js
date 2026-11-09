@@ -195,32 +195,60 @@ function validateBetSelection(code,selection) {
 }
 
 
+
+function startBlackjackGame() {
+  const cards=shuffle(Array.from({length:6},()=>deck()).flat());
+  const state={player:[cards.pop(),cards.pop()],dealer:[cards.pop(),cards.pop()],deck:cards,status:'playing',outcome:null};
+  if(blackjackTotal(state.player)===21) finishBlackjackState(state);
+  return state;
+}
+function finishBlackjackState(state) {
+  if(state.status==='done') return state;
+  const playerTotal=blackjackTotal(state.player);
+  if(playerTotal<=21) while(blackjackTotal(state.dealer)<17&&state.deck.length) state.dealer.push(state.deck.pop());
+  const dealerTotal=blackjackTotal(state.dealer);
+  if(playerTotal>21) state.outcome='bust';
+  else if(playerTotal===21&&state.player.length===2&&dealerTotal!==21) state.outcome='blackjack';
+  else if(dealerTotal>21||playerTotal>dealerTotal) state.outcome='win';
+  else if(playerTotal===dealerTotal) state.outcome='push';
+  else state.outcome='lose';
+  state.status='done';state.playerTotal=playerTotal;state.dealerTotal=dealerTotal;
+  return state;
+}
+function blackjackAction(state,action) {
+  const next=JSON.parse(JSON.stringify(state));
+  if(next.status!=='playing') throw new Error('Esta mão de blackjack já foi encerrada.');
+  if(action==='hit') {
+    if(!next.deck.length) throw new Error('Baralho sem cartas.');
+    next.player.push(next.deck.pop());
+    if(blackjackTotal(next.player)>=21) finishBlackjackState(next);
+  } else if(action==='stand') finishBlackjackState(next);
+  else throw new Error('Ação inválida. Use hit ou stand.');
+  return next;
+}
+function startPokerGame() {
+  const cards=shuffle(deck());
+  return {hand:cards.splice(0,5),deck:cards,status:'draw'};
+}
+function drawPokerCards(state,indices=[]) {
+  const next=JSON.parse(JSON.stringify(state));
+  if(next.status!=='draw') throw new Error('Esta mão de pôquer já foi encerrada.');
+  if(!Array.isArray(indices)||indices.length>5||new Set(indices).size!==indices.length||indices.some(i=>!Number.isInteger(i)||i<0||i>4)) throw new Error('Seleção de cartas inválida.');
+  for(const i of indices) {if(!next.deck.length)throw new Error('Baralho sem cartas.');next.hand[i]=next.deck.pop();}
+  next.status='done';next.rank=pokerRank(next.hand);
+  return next;
+}
+
 function resolveBlackjackTable(bets) {
-  const cards=shuffle(Array.from({length:8},()=>deck()).flat());
-  const players=bets.map(b=>({betId:b.id,hand:[cards.pop(),cards.pop()],actions:Array.isArray(b.selecao?.actions)?b.selecao.actions:['stand']}));
-  const dealer=[cards.pop(),cards.pop()];
-  for(const p of players) {
-    for(const action of p.actions.slice(0,10)) {
-      if(action==='stand') break;
-      if(action!=='hit') throw new Error('Ação de blackjack inválida.');
-      p.hand.push(cards.pop());
-      if(blackjackTotal(p.hand)>=21) break;
-    }
-  }
-  while(blackjackTotal(dealer)<17) dealer.push(cards.pop());
-  const dealerTotal=blackjackTotal(dealer);
   const byBetId={}; const winnerIds=[];
-  for(const p of players) {
-    const total=blackjackTotal(p.hand);
-    let outcome='lose';
-    if(total>21) outcome='bust';
-    else if(total===21&&p.hand.length===2&&dealerTotal!==21) outcome='blackjack';
-    else if(dealerTotal>21||total>dealerTotal) outcome='win';
-    else if(total===dealerTotal) outcome='push';
-    byBetId[p.betId]={player:p.hand,dealer,playerTotal:total,dealerTotal,outcome};
-    if(outcome==='win'||outcome==='blackjack') winnerIds.push(p.betId);
+  for(const b of bets) {
+    let state=b.selecao?.player&&b.selecao?.dealer?JSON.parse(JSON.stringify(b.selecao)):startBlackjackGame();
+    if(state.status!=='done') finishBlackjackState(state);
+    const outcome=state.outcome;
+    byBetId[b.id]={player:state.player,dealer:state.dealer,playerTotal:state.playerTotal??blackjackTotal(state.player),dealerTotal:state.dealerTotal??blackjackTotal(state.dealer),outcome};
+    if(outcome==='win'||outcome==='blackjack') winnerIds.push(b.id);
   }
-  return {result:{tipo:'blackjack_table',dealer,dealerTotal,porAposta:byBetId},winnerIds,byBetId};
+  return {result:{tipo:'blackjack',porAposta:byBetId},winnerIds,byBetId};
 }
 
 function resolveRound(code,bets) {
@@ -248,10 +276,10 @@ function resolveRound(code,bets) {
     const table=resolveBlackjackTable(bets);result=table.result;winnerIds=table.winnerIds;Object.assign(byBetId,table.byBetId);
   } else if(code==='poquer') {
     let best=null;
-    for(const b of bets){const hand=shuffle(deck()).slice(0,5),rank=pokerRank(hand);byBetId[b.id]={hand,rank};if(!best||comparePoker(hand,best.hand)>0){best={hand};winnerIds=[b.id];}else if(comparePoker(hand,best.hand)===0)winnerIds.push(b.id);}
+    for(const b of bets){const hand=Array.isArray(b.selecao?.hand)?b.selecao.hand:shuffle(deck()).slice(0,5),rank=pokerRank(hand);byBetId[b.id]={hand,rank};if(!best||comparePoker(hand,best.hand)>0){best={hand};winnerIds=[b.id];}else if(comparePoker(hand,best.hand)===0)winnerIds.push(b.id);}
     result={tipo:'poquer',porAposta:byBetId};
   } else throw new Error('Jogo sem motor de resultado: '+code);
   return {result,winnerIds,byBetId};
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,resolveRound};
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,startBlackjackGame,blackjackAction,startPokerGame,drawPokerCards,resolveRound};
