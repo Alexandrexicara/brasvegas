@@ -25,7 +25,7 @@
  }
  async function refreshBalance(){
   const user=await api('/usuario');
-  balance.textContent=Number(user.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  balance.textContent=Number(user.modoJogo==='treino'?user.saldoTreino:user.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
  }
  function showState(state){
   paint(playerCards,state.player||[]);
