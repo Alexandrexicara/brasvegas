@@ -82,9 +82,9 @@ function crapsResult(betType='pass') {
 function diceResult() { const dice=rollDice(); return {dice,sum:dice[0]+dice[1]}; }
 function evaluateDiceBet(selection,result) {
   if(!selection||typeof selection!=='object') return false;
-  if(selection.type==='sum') return Number.isInteger(selection.value)&&selection.value>=2&&selection.value<=12&&selection.value===result.sum;
-  if(selection.type==='total_over') return Number.isInteger(selection.value)&&selection.value>=2&&selection.value<=11&&result.sum>selection.value;
-  if(selection.type==='total_under') return Number.isInteger(selection.value)&&selection.value>=3&&selection.value<=12&&result.sum<selection.value;
+  if(selection.type==='sum') return Number.isInteger(Number(selection.value))&&Number(selection.value)>=2&&Number(selection.value)<=12&&Number(selection.value)===result.sum;
+  if(selection.type==='total_over') return Number.isInteger(Number(selection.value))&&Number(selection.value)>=2&&Number(selection.value)<=11&&result.sum>Number(selection.value);
+  if(selection.type==='total_under') return Number.isInteger(Number(selection.value))&&Number(selection.value)>=3&&Number(selection.value)<=12&&result.sum<Number(selection.value);
   if(selection.type==='doubles') return result.dice[0]===result.dice[1];
   return false;
 }
