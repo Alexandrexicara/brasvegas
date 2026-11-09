@@ -95,7 +95,14 @@
    const bet=await api('/rodadas/'+roundId+'/apostas',{method:'POST',body:JSON.stringify({valor:Number(amount.value),selecao:{type:'join',format:Number(format.value)}})});
    myBetId=bet.apostaId;state=bet.gameState;if(bet.modoJogo==='treino')message.textContent='MODO TREINO · fichas virtuais sem valor monetário. ';format.disabled=true;amount.disabled=true;
    describe();render();refresh();
-  }catch(e){message.textContent=e.message;joinBtn.disabled=false;}
+   }catch(e){
+   message.textContent=e.message;joinBtn.disabled=false;
+   if(e.message.includes('Saldo de treino insuficiente')){
+    const refill=document.createElement('button');refill.textContent='RECARREGAR FICHAS DE TREINO';
+    refill.onclick=async()=>{try{await api('/treino/recarregar',{method:'POST',body:JSON.stringify({})});message.textContent='Fichas de treino recarregadas. Entre novamente na mesa.';}catch(x){message.textContent=x.message;}};
+    message.appendChild(document.createElement('br'));message.appendChild(refill);
+   }
+  }
   finally{joining=false;}
  }
  async function shoot(){
