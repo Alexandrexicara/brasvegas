@@ -50,47 +50,4 @@ h1{text-align:center;font-size:32px;color:var(--l);margin-bottom:20px;}
 </div>
 <div class="res" id="res"></div>
 </div>
-<script>
-let saldo=1000;
-const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
-const moeda=document.getElementById('moeda'),res=document.getElementById('res');
-const ps=document.querySelectorAll('.p');
-const pinos=document.getElementById('pinos');
-
-for(let l=0;l<9;l++){
-  let des=l%2?35:0;
-  for(let c=0;c<11;c++){
-    const p=document.createElement('div');p.className='pino';
-    p.style.left=(c*38+des)+'px';p.style.top=(l*45+20)+'px';
-    pinos.appendChild(p);
-  }
-}
-
-btn.addEventListener('click',jogar);
-
-function jogar(){
-  const val=parseFloat(a.value);
-  if(val>saldo){res.textContent='❌ Sem saldo!';res.style.color='#f44';return;}
-  saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');
-  moeda.style.display='block';moeda.style.left='200px';moeda.style.top='0px';
-  res.textContent='';
-  let y=0,x=200;
-  const id=setInterval(()=>{
-    y+=12;
-    x+=Math.random()>.5?12:-12;
-    x=Math.max(10,Math.min(390,x));
-    moeda.style.top=y+'px';moeda.style.left=x+'px';
-    if(y>=420){
-      clearInterval(id);
-      const idx=Math.floor((x-10)/50);
-      const p=ps[Math.max(0,Math.min(7,idx))];
-      const m=parseFloat(p.dataset.m);
-      if(m>1)saldo+=val*m;
-      s.textContent=saldo.toFixed(2).replace('.',',');
-      res.textContent=m===500?`🏆 JACKPOT R$${(val*m).toFixed(2)}!`:`✅ x${m} — R$${(val*m).toFixed(2)}`;
-      res.style.color=m>=50?'#39ff14':'#ffd700';
-      moeda.style.display='none';
-    }
-  },50);
-}
-</script></body></html>
+<script src="js/multiplayer-game.js"></script></body></html>
