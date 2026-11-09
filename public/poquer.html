@@ -1,0 +1,49 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Pôquer | BrasVegas</title>
+<style>
+:root{--v:#e50914;--p:#0a0a0a;--a:#0066ff;--l:#ff6a00;--g:#39ff14;--dourado:#d4af37;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+body{background:linear-gradient(180deg,#001133,#00081a);min-height:100vh;color:#fff;padding:20px;}
+h1{text-align:center;font-size:32px;color:var(--dourado);margin-bottom:20px;}
+.mesa{max-width:650px;margin:0 auto;background:radial-gradient(circle,#003366,#001a33);border-radius:20px;border:6px solid var(--dourado);padding:25px;}
+.cartas{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:20px 0;min-height:130px;}
+.carta{width:75px;height:110px;background:#fff;border-radius:6px;padding:5px;color:#000;font-weight:bold;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;transition:.2s;}
+.carta.vm{color:#e50914;}
+.carta.selecionada{transform:translateY(-10px);box-shadow:0 10px 20px rgba(0,0,0,.5);border:2px solid var(--g);}
+.ctrl{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:15px;}
+.ctrl input{padding:10px;font-size:18px;width:120px;border-radius:6px;border:2px solid var(--dourado);background:#111;color:#fff;text-align:center;}
+.ctrl button{padding:12px 20px;font-size:16px;font-weight:bold;border-radius:8px;border:none;background:linear-gradient(180deg,var(--l),#cc5500);color:#fff;cursor:pointer;}
+.saldo{text-align:center;font-size:22px;color:var(--g);font-weight:bold;margin-bottom:10px;}
+.res{text-align:center;font-size:22px;font-weight:bold;margin-top:15px;min-height:35px;}
+.info{text-align:center;font-size:13px;color:#aaa;margin-top:10px;}
+</style></head><body>
+<h1>♠️ PÔQUER DE 5 CARTAS ♥️</h1>
+<div class="saldo">💰 R$ <span id="s">1000,00</span></div>
+<div class="mesa">
+<div class="cartas" id="mao"></div>
+<div class="ctrl">
+<input type="number" id="a" value="20" min="1">
+<button id="trocar">TROCAR SELECIONADAS</button>
+<button id="nova">NOVA MÃO</button>
+</div>
+<div class="res" id="res"></div>
+<div class="info">
+Pagamentos: Royal Flush x500 | Quadra x50 | Full House x10 | Flush x6 | Sequência x4 | Trinca x3 | Dois Pares x2 | Par de Valetes+ x1
+</div>
+</div>
+<script>
+let saldo=1000,mao=[],bar=[],fim=false;
+const s=document.getElementById('s'),a=document.getElementById('a');
+const maoEl=document.getElementById('mao'),res=document.getElementById('res');
+const btnTrocar=document.getElementById('trocar'),btnNova=document.getElementById('nova');
+const naipes=['♠','♥','♦','♣'],vals=['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const ordem={A:14,K:13,Q:12,J:11,'10':10,'9':9,'8':8,'7':7,'6':6,'5':5,'4':4,'3':3,'2':2};
+function embaralhar(){bar=[];for(let n of naipes)for(let v of vals)bar.push({n,v});for(let i=bar.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bar[i],bar[j]]=[bar[j],bar[i]];}}
+function elCarta(c){const d=document.createElement('div');d.className='carta'+(c.n==='♥'||c.n==='♦'?' vm':'');d.innerHTML=`<div>${c.v}${c.n}</div><div style="font-size:28px;text-align:center">${c.n}</div>`;d.addEventListener('click',()=>{if(!fim)d.classList.toggle('selecionada');});return d;}
+function distribuir(){mao=[];maoEl.innerHTML='';res.textContent='';fim=false;for(let i=0;i<5;i++){const c=bar.pop();mao.push(c);maoEl.appendChild(elCarta(c));}}
+function avaliar(m){const v=m.map(x=>ordem[x.v]).sort((a,b)=>a-b);const naipe=m.map(x=>x.n);const cont={};v.forEach(x=>cont[x]=(cont[x]||0)+1);const cnt=Object.values(cont).sort((a,b)=>b-a);const un=[...new Set(v)].sort((a,b)=>a-b);const seq=un.length===5&&un[4]-un[0]===4;const flush=naipe.every(x=>x===naipe[0]);if(seq&&flush&&un[4]===14)return['👑 ROYAL FLUSH!',500];if(seq&&flush)return['🔥 STRAIGHT FLUSH!',50];if(cnt[0]===4)return['🎯 QUADRA!',50];if(cnt[0]===3&&cnt[1]===2)return['🏠 FULL HOUSE!',10];if(flush)return['💧 FLUSH!',6];if(seq)return['📏 SEQUÊNCIA!',4];if(cnt[0]===3)return['🎲 TRINCA!',3];if(cnt[0]===2&&cnt[1]===2)return['✌️ DOIS PARES!',2];if(cnt[0]===2&&Object.keys(cont).some(k=>parseInt(k)>=11))return['🤵 PAR DE VALETES+',1];return['— Sem combinação',0];}
+btnNova.addEventListener('click',()=>{const val=parseFloat(a.value);if(val<=0||val>saldo){res.textContent='❌ Aposta inválida!';res.style.color='#f44';return;}saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');embaralhar();distribuir();});
+btnTrocar.addEventListener('click',()=>{if(fim||mao.length===0)return;const sel=[...maoEl.children].map((el,i)=>({el,i,sel:el.classList.contains('selecionada')}));const val=parseFloat(a.value);let trocadas=0;sel.forEach(x=>{if(x.sel){mao[x.i]=bar.pop();trocadas++;}});maoEl.innerHTML='';mao.forEach(c=>maoEl.appendChild(elCarta(c)));fim=true;const[texto,mult]=avaliar(mao);res.textContent=texto+(mult>0?` — x${mult}`:'');res.style.color=mult>0?'#39ff14':'#aaa';if(mult>0){saldo+=val*mult;s.textContent=saldo.toFixed(2).replace('.',',');}});
+embaralhar();distribuir();
+</script></body></html>

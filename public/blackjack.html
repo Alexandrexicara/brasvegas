@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Blackjack 21 | BrasVegas</title>
+<style>
+:root{--v:#e50914;--p:#0a0a0a;--a:#0066ff;--l:#ff6a00;--g:#39ff14;--dourado:#d4af37;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+body{background:radial-gradient(circle at center,#0f2f1f,#051008);min-height:100vh;color:#fff;}
+.laterais{position:absolute;top:0;bottom:0;width:110px;display:flex;flex-direction:column;gap:8px;padding:10px;z-index:10;}
+.esq{left:0;background:linear-gradient(90deg,rgba(0,40,20,.95),transparent);}
+.dir{right:0;background:linear-gradient(-90deg,rgba(0,40,20,.95),transparent);}
+.jogador{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.07);border-radius:15px;padding:6px 8px;font-size:11px;animation:flutuar 3s infinite ease-in-out;}
+@keyframes flutuar{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(45deg,var(--l),var(--g));display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;}
+.nome{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.valor{color:var(--g);font-weight:bold;}
+.centro{display:flex;flex-direction:column;align-items:center;padding:20px 130px;min-height:100vh;}
+h1{font-size:28px;color:var(--g);text-shadow:0 0 15px var(--g);margin-bottom:20px;}
+.mesa{width:520px;background:radial-gradient(circle at center,#0e5c38,#0a3d26);border-radius:20px;border:4px solid var(--dourado);padding:25px;box-shadow:0 0 40px rgba(0,0,0,.5),inset 0 0 30px rgba(0,0,0,.3);}
+.area{margin-bottom:20px;min-height:140px;}
+.titulo-area{font-size:16px;font-weight:bold;margin-bottom:10px;color:var(--dourado);}
+.cartas{display:flex;gap:10px;flex-wrap:wrap;}
+.carta{width:70px;height:100px;background:#fff;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:bold;font-size:20px;box-shadow:2px 4px 6px rgba(0,0,0,.4);transition:transform .3s;}
+.carta:hover{transform:translateY(-5px);}
+.carta.vermelho{color:#e50914;}
+.carta.preto{color:#000;}
+.carta.costa{background:linear-gradient(135deg,#1a3a5c,#0f2540);color:#fff;font-size:14px;}
+.valor-carta{font-size:12px;opacity:.7;}
+.texto{font-size:24px;}
+.contrarregra{transform:rotate(180deg);font-size:12px;opacity:.7;}
+.pontos{margin-top:8px;font-size:16px;font-weight:bold;}
+.controles{display:flex;gap:12px;justify-content:center;margin-top:20px;}
+.btn{padding:12px 25px;font-size:16px;font-weight:bold;border-radius:8px;border:none;cursor:pointer;transition:all .2s;}
+.btn-verde{background:linear-gradient(180deg,var(--g),#009933);color:#000;box-shadow:0 0 10px var(--g);}
+.btn-vermelho{background:linear-gradient(180deg,var(--v),#b30000);color:#fff;box-shadow:0 0 10px var(--v);}
+.btn-laranja{background:linear-gradient(180deg,var(--l),#cc5200);color:#fff;box-shadow:0 0 10px var(--l);}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+.saldo{font-size:22px;color:var(--g);font-weight:bold;margin-bottom:10px;}
+.aposta{padding:10px 15px;font-size:16px;border-radius:6px;border:2px solid var(--dourado);background:rgba(0,0,0,.5);color:#fff;width:120px;text-align:center;}
+.resultado{margin-top:15px;font-size:24px;font-weight:bold;height:35px;text-align:center;}
+</style></head><body>
+<div class="laterais esq" id="je"></div><div class="laterais dir" id="jd"></div>
+<div class="centro">
+<h1>🃏 BLACKJACK 21</h1>
+<div class="saldo">💰 Saldo: R$ <span id="saldo">1000,00</span></div>
+<div class="mesa">
+<div class="area"><div class="titulo-area">🤖 BANCA <span id="pontos-banca"></span></div><div class="cartas" id="cartas-banca"></div></div>
+<div class="area"><div class="titulo-area">👤 VOCÊ <span id="pontos-jogador"></span></div><div class="cartas" id="cartas-jogador"></div></div>
+</div>
+<div class="controles">
+<input type="number" class="aposta" id="aposta" value="20" min="1">
+<button class="btn btn-verde" id="btn-nova">NOVA</button>
+<button class="btn btn-laranja" id="btn-pedir" disabled>PEDIR</button>
+<button class="btn btn-vermelho" id="btn-parar" disabled>PARAR</button>
+</div>
+<div class="resultado" id="res"></div>
+</div>
+<script>
+const nomes=['Ana','Bruno','Carla','Daniel','Elisa','Felipe','Gabi','Hugo'];
+const naipes=[{s:'♠',cor:'preto'},{s:'♥',cor:'vermelho'},{s:'♦',cor:'vermelho'},{s:'♣',cor:'preto'}];
+const valores=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+function gerarJogador(){
+  return{n:nomes[Math.floor(Math.random()*nomes.length)]+' '+Math.floor(Math.random()*99)+'º',v:(Math.random()*300+30).toFixed(2)};
+}
+function montarLados(){
+  const je=document.getElementById('je'),jd=document.getElementById('jd');
+  for(let i=0;i<5;i++){
+    const j=gerarJogador();
+    const el=document.createElement('div');el.className='jogador';
+    el.innerHTML=`<div class="avatar">${j.n[0]}</div><div class="nome">${j.n}</div><div class="valor">+R$${j.v}</div>`;
+    je.appendChild(el.cloneNode(true));jd.appendChild(el.cloneNode(true));
+  }
+}
+montarLados();
+
+let saldo=1000,apostaAtual=0,baralho=[],jogador=[],banca=[],fim=false;
+const saldoEl=document.getElementById('saldo'),apostaEl=document.getElementById('aposta');
+const cartasJog=document.getElementById('cartas-jogador'),cartasBan=document.getElementById('cartas-banca');
+const pontosJog=document.getElementById('pontos-jogador'),pontosBan=document.getElementById('pontos-banca');
+const res=document.getElementById('res');
+const btnNova=document.getElementById('btn-nova'),btnPedir=document.getElementById('btn-pedir'),btnParar=document.getElementById('btn-parar');
+
+btnNova.addEventListener('click',novaPartida);
+btnPedir.addEventListener('click',pedir);
+btnParar.addEventListener('click',parar);
+
+function embaralhar(){
+  baralho=[];
+  for(let n=0;n<6;n++)for(const naipe of naipes)for(const v of valores)baralho.push({v,...naipe});
+  for(let i=baralho.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[baralho[i],baralho[j]]=[baralho[j],baralho[i]];}
+}
+function valorCarta(carta){
+  if(carta.v==='A')return 11;
+  if(['J','Q','K'].includes(carta.v))return 10;
+  return parseInt(carta.v);
+}
+function somar(p){
+  let s=p.reduce((t,c)=>t+valorCarta(c),0);
+  p.filter(c=>c.v==='A').forEach(_=>{if(s>21)s-=10;});
+  return s;
+}
+function criarCarta(carta,virada=false){
+  const el=document.createElement('div');
+  el.className='carta '+(virada?'costa':carta.cor);
+  if(virada){el.textContent='🃏';return el;}
+  el.innerHTML=`<div class="contrarregra">${carta.v}${carta.s}</div><div class="texto">${carta.s}</div><div class="valor-carta">${carta.v}${carta.s}</div>`;
+  return el;
+}
+function novaPartida(){
+  apostaAtual=parseFloat(apostaEl.value);
+  if(apostaAtual>saldo){res.textContent='❌ Saldo insuficiente!';res.style.color='#e50914';return;}
+  saldo-=apostaAtual;atualizarSaldo();
+  res.textContent='';fim=false;
+  embaralhar();jogador=[];banca=[];
+  cartasJog.innerHTML='';cartasBan.innerHTML='';
+  jogador.push(baralho.pop());banca.push(baralho.pop());jogador.push(baralho.pop());banca.push(baralho.pop());
+  jogador.forEach(c=>cartasJog.appendChild(criarCarta(c)));
+  banca.forEach((c,i)=>cartasBan.appendChild(criarCarta(c,i===1)));
+  pontosJog.textContent=`(${somar(jogador)})`;pontosBan.textContent='(?)';
+  btnPedir.disabled=false;btnParar.disabled=false;
+  const sJog=somar(jogador);
+  if(sJog===21){
+    res.textContent='🎉 BLACKJACK!';res.style.color='#39ff14';
+    saldo+=apostaAtual*2.5;atualizarSaldo();fim=true;
+    btnPedir.disabled=true;btnParar.disabled=true;desvirar();
+  }
+}
+function pedir(){
+  jogador.push(baralho.pop());
+  cartasJog.appendChild(criarCarta(jogador[jogador.length-1]));
+  const s=somar(jogador);pontosJog.textContent=`(${s})`;
+  if(s>21){
+    res.textContent='💥 ESTOUROU!';res.style.color='#e50914';fim=true;
+    btnPedir.disabled=true;btnParar.disabled=true;desvirar();
+  }
+}
+function parar(){
+  desvirar();
+  while(somar(banca)<17)banca.push(baralho.pop());
+  pontosBan.textContent=`(${somar(banca)})`;
+  cartasBan.innerHTML='';banca.forEach(c=>cartasBan.appendChild(criarCarta(c)));
+  const sJ=somar(jogador),sB=somar(banca);
+  if(sB>21||sJ>sB){
+    res.textContent='✅ VOCÊ GANHOU!';res.style.color='#39ff14';saldo+=apostaAtual*2;
+  } else if(sJ<sB){
+    res.textContent='❌ BANCA GANHOU!';res.style.color='#e50914';
+  } else {
+    res.textContent='🤝 EMPATE! Devolvido.';res.style.color='#ffd700';saldo+=apostaAtual;
+  }
+  atualizarSaldo();fim=true;btnPedir.disabled=true;btnParar.disabled=true;
+}
+function desvirar(){cartasBan.innerHTML='';banca.forEach(c=>cartasBan.appendChild(criarCarta(c)));pontosBan.textContent=`(${somar(banca)})`;}
+function atualizarSaldo(){saldoEl.textContent=saldo.toFixed(2).replace('.',',');}
+</script></body></html>

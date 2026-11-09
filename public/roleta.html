@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎡 Roleta — BRASVEGAS</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header>
+  <div class="logo" onclick="window.location.href='salao.html'" style="cursor:pointer;">← VOLTAR</div>
+  <div class="saldo-header">💰 R$ <span id="mostrar-saldo">0,00</span></div>
+</header>
+<div class="roleta-container">
+  <h1 style="color:#ffd700;">🎡 ROLETA DA SORTE</h1>
+  <div class="roleta-wrapper">
+    <div class="bolinha"></div>
+    <div id="roleta" class="roleta"></div>
+    <div class="roleta-centro"></div>
+  </div>
+  <div class="apostas-container">
+    <h3>💵 FAÇA SUA APOSTA</h3>
+    <div class="aposta-opcoes">
+      <button class="btn btn-vermelho" onclick="selecionarAposta('vermelho')">🔴 VERMELHO<br>2x</button>
+      <button class="btn btn-preto" onclick="selecionarAposta('preto')">⚫ PRETO<br>2x</button>
+      <button class="btn btn-verde" onclick="selecionarAposta('verde')">🟢 VERDE<br>36x</button>
+    </div>
+    <div style="margin:15px 0;">
+      <label>Nº (0-36):</label>
+      <input type="number" id="numero-escolhido" min="0" max="36" placeholder="Nº" style="width:70px; padding:8px; background:#2d2d2d; border:2px solid #444; color:#fff; border-radius:6px;">
+      <button class="btn btn-laranja" style="padding:8px 12px;" onclick="selecionarAposta('numero')">Nº</button>
+    </div>
+    <div class="valor-aposta">
+      <label>Valor R$:</label>
+      <input type="number" id="valor-aposta" min="1" value="10">
+    </div>
+    <p id="tipo-aposta" style="color:#39ff14; font-weight:bold;">Selecione sua aposta acima</p>
+    <button class="btn btn-dourado" style="width:100%; font-size:18px; padding:12px; margin-top:10px;" onclick="girarRoleta()">🎰 GIRAR E APOSTAR!</button>
+    <div id="resultado" class="resultado-roleta" style="display:none;"></div>
+  </div>
+</div>
+<script src="js/app.js"></script>
+</body>
+</html>
