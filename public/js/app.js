@@ -12,7 +12,7 @@ function salvarSessao(t, u) {
 
 function atualizarInterface() {
   const saldoEl = document.getElementById('mostrar-saldo');
-  if(saldoEl&&usuario){const saldo=usuario.modoJogo==='treino'?usuario.saldoTreino:usuario.saldo;saldoEl.textContent=Number(saldo||0).toLocaleString('pt-BR',{minimumFractionDigits:2});}
+  if(saldoEl&&usuario){const treino=usuario.modoJogo==='treino';const saldo=treino?usuario.saldoTreino:usuario.saldo;saldoEl.textContent=Number(saldo||0).toLocaleString('pt-BR',{minimumFractionDigits:2});if(saldoEl.parentElement?.firstChild?.nodeType===3)saldoEl.parentElement.firstChild.textContent=treino?'🎟️ Fichas de treino: ':'💰 R$ ';}
 }
 
 async function fazerLogin() {
