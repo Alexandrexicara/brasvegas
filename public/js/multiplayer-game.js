@@ -48,7 +48,7 @@
   try{
    const current=await api('/jogos/'+code+'/rodada-atual');
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:selection()})});
-   result.textContent='Aposta registrada na rodada '+current.rodada.numero+'. Aguardando resultado...';
+   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Aposta registrada na rodada '+current.rodada.numero+'. Aguardando resultado...';
    let final=null;
    for(let i=0;i<25;i++){
     await new Promise(resolve=>setTimeout(resolve,2000));
@@ -58,7 +58,7 @@
    if(!final){result.textContent='Aposta confirmada. Resultado será atualizado quando a rodada encerrar.';return;}
    const detail=final.resultado?.byBetId?.[bet.apostaId]||final.resultado?.result?.porAposta?.[bet.apostaId]||final.resultado?.result;
    const won=final.aposta?.status==='paga';
-   result.textContent=(won?'VOCÊ GANHOU · ':'VOCÊ NÃO GANHOU · ')+renderState(code,detail)+' · Prêmio: R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · ':'')+(won?'VOCÊ GANHOU · ':'VOCÊ NÃO GANHOU · ')+renderState(code,detail)+' · Prêmio: R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
    await carregarSaldo();
   }catch(error){result.textContent=error.message;}
   finally{busy=false;if(button)button.disabled=false;}
