@@ -11,8 +11,16 @@ function salvarSessao(t, u) {
 }
 
 function atualizarInterface() {
-  const saldoEl = document.getElementById('mostrar-saldo');
-  if(saldoEl&&usuario){const treino=usuario.modoJogo==='treino';const saldo=treino?usuario.saldoTreino:usuario.saldo;saldoEl.textContent=Number(saldo||0).toLocaleString('pt-BR',{minimumFractionDigits:2});if(saldoEl.parentElement?.firstChild?.nodeType===3)saldoEl.parentElement.firstChild.textContent=treino?'🎟️ Fichas de treino: ':'💰 R$ ';}
+  const saldoEl=document.getElementById('mostrar-saldo');
+  if(saldoEl&&usuario){
+    const treino=usuario.modoJogo==='treino',saldo=treino?usuario.saldoTreino:usuario.saldo;
+    saldoEl.textContent=Number(saldo||0).toLocaleString('pt-BR',{minimumFractionDigits:2});
+    if(saldoEl.parentElement?.firstChild?.nodeType===3)saldoEl.parentElement.firstChild.textContent=treino?'🎟️ Fichas de treino: ':'💰 R$ ';
+    const modo=document.getElementById('modo-plataforma');
+    if(modo)modo.textContent=treino?'MODO TREINO · fichas virtuais sem valor monetário':'MODO REAL · apostas sujeitas à validação bancária e jurídica';
+    const deposito=document.getElementById('btn-deposito');
+    if(deposito)deposito.hidden=treino;
+  }
 }
 
 async function fazerLogin() {
