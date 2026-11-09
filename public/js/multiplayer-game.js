@@ -30,8 +30,8 @@
   if(!perBet)return 'Resultado recebido.';
   if(gameCode==='bacara')return 'Jogador '+perBet.playerTotal+' × Banco '+perBet.bankerTotal+' — '+perBet.winner;
   if(gameCode==='craps'||gameCode==='dados')return 'Dados: '+perBet.rolls.map(x=>x.join(' + ')).join(' → ');
-  if(gameCode==='caca-niqueis'||gameCode==='frutas')return perBet.symbols.join(' | ')+' — multiplicador '+perBet.multiplier+'x';
-  if(gameCode==='parede-sorte')return 'Multiplicador: '+perBet.multiplier+'x';
+  if(gameCode==='caca-niqueis'||gameCode==='frutas')return perBet.symbols.join(' | ')+(perBet.multiplier>0?' — combinação de três iguais':' — sem combinação premiada');
+  if(gameCode==='parede-sorte')return 'Pontuação da queda: '+perBet.multiplier+' pontos. A maior pontuação da rodada vence o prêmio compartilhado.';
   return JSON.stringify(perBet);
  };
  async function carregarSaldo(){
