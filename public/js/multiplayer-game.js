@@ -60,7 +60,14 @@
    const won=final.aposta?.status==='paga';
    result.textContent=(current.modoJogo==='treino'?'MODO TREINO · ':'')+(won?'VOCÊ GANHOU · ':'VOCÊ NÃO GANHOU · ')+renderState(code,detail)+' · Prêmio: R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
    await carregarSaldo();
-  }catch(error){result.textContent=error.message;}
+   }catch(error){
+   result.textContent=error.message;
+   if(error.message.includes('Saldo de treino insuficiente')){
+    const refill=document.createElement('button');refill.textContent='RECARREGAR FICHAS DE TREINO';
+    refill.onclick=async()=>{try{await api('/treino/recarregar',{method:'POST',body:JSON.stringify({})});await carregarSaldo();result.textContent='Fichas de treino recarregadas. Jogue novamente.';}catch(e){result.textContent=e.message;}};
+    result.appendChild(document.createElement('br'));result.appendChild(refill);
+   }
+  }
   finally{busy=false;if(button)button.disabled=false;}
  };
  document.querySelectorAll('#apJogador,#apBanco,#apEmpate,#apPassar,#apNaoPassar').forEach(el=>el.addEventListener('click',()=>{
