@@ -11,12 +11,13 @@
   <div class="logo">🎰 SALÃO DE JOGOS</div>
   <div class="saldo-header">💰 R$ <span id="mostrar-saldo">0,00</span></div>
   <div class="nav-botoes">
-    <button class="btn btn-verde" onclick="abrirModalDeposito()">⬆️ DEPÓSITO</button>
+    <button id="btn-deposito" class="btn btn-verde" onclick="abrirModalDeposito()">⬆️ DEPÓSITO</button>
     <button class="btn btn-preto" onclick="sair()">SAIR</button>
   </div>
 </header>
 <div class="container">
   <h1 style="text-align:center; color:#ffd700; margin:30px 0;">🎰 ESCOLHA SEU JOGO</h1>
+  <p id="modo-plataforma" style="text-align:center;color:#f4d36b;font-weight:bold;">MODO TREINO · fichas virtuais sem valor monetário</p>
   <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:25px;">
     <div style="background:#1a1a1a; border-radius:16px; padding:25px; text-align:center; border:2px solid #e50914; cursor:pointer;" onclick="window.location.href='roleta.html'">
       <div style="font-size:60px;">🎡</div>
@@ -24,6 +25,38 @@
       <p style="color:#aaa; margin:10px 0;">Vermelho, Preto ou Verde</p>
       <p style="color:#ffd700; font-weight:bold;">Prêmio até 35x</p>
       <button class="btn btn-vermelho" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='blackjack.html'">
+      <div style="font-size:60px;">🃏</div><h3 style="color:#d4af37;font-size:24px;">BLACKJACK</h3>
+      <p style="color:#aaa;margin:10px 0;">Cartas, pedir ou parar, disputa contra a banca</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='bacara.html'">
+      <div style="font-size:60px;">♠️</div><h3 style="color:#d4af37;font-size:24px;">BACARÁ</h3>
+      <p style="color:#aaa;margin:10px 0;">Jogador, banqueiro ou empate</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='caca-niqueis.html'">
+      <div style="font-size:60px;">🎰</div><h3 style="color:#d4af37;font-size:24px;">CAÇA-NÍQUEIS</h3>
+      <p style="color:#aaa;margin:10px 0;">Giros e combinações de símbolos</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='craps.html'">
+      <div style="font-size:60px;">🎲</div><h3 style="color:#d4af37;font-size:24px;">CRAPS</h3>
+      <p style="color:#aaa;margin:10px 0;">Passar ou não passar nos dados</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='dados.html'">
+      <div style="font-size:60px;">🎲</div><h3 style="color:#d4af37;font-size:24px;">DADOS</h3>
+      <p style="color:#aaa;margin:10px 0;">Rodadas compartilhadas e apostas no resultado</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='frutas.html'">
+      <div style="font-size:60px;">🍓</div><h3 style="color:#d4af37;font-size:24px;">FRUTAS</h3>
+      <p style="color:#aaa;margin:10px 0;">Símbolos e combinações premiadas</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='parede-sorte.html'">
+      <div style="font-size:60px;">🧱</div><h3 style="color:#d4af37;font-size:24px;">PAREDE DA SORTE</h3>
+      <p style="color:#aaa;margin:10px 0;">Percurso aleatório até os multiplicadores</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
+    </div>
+    <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #b18b35;cursor:pointer;" onclick="window.location.href='poquer.html'">
+      <div style="font-size:60px;">♣️</div><h3 style="color:#d4af37;font-size:24px;">PÔQUER</h3>
+      <p style="color:#aaa;margin:10px 0;">Mão de cinco cartas e troca de cartas</p><button class="btn btn-dourado" style="margin-top:15px;">JOGAR AGORA</button>
     </div>
     <div style="background:#1a1a1a;border-radius:16px;padding:25px;text-align:center;border:2px solid #d4af37;cursor:pointer;" onclick="window.location.href='sinuca.html'">
       <div style="font-size:60px;">🎱</div><h3 style="color:#d4af37;font-size:24px;">SINUCA / BILHAR</h3>
