@@ -89,7 +89,7 @@ function evaluateDiceBet(selection,result) {
   return false;
 }
 function slotResult(symbols,paytable) {
-  if(!Array.isArray(symbols)||symbols.length<2||symbols.some(s=>typeof s!=='string'||!s)) throw new Error('Configuração de símbolos inválida.');
+  if(!Array.isArray(symbols)||symbols.length<1||symbols.some(s=>typeof s!=='string'||!s)) throw new Error('Configuração de símbolos inválida.');
   const result=Array.from({length:3},()=>symbols[pick(symbols.length)]);
   const multiplier=result.every(s=>s===result[0])?Number(paytable[result[0]]||0):0;
   return {symbols:result,multiplier};
