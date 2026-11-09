@@ -99,7 +99,7 @@ async function girarRoleta() {
     const resEl = document.getElementById('resultado');
     if (resEl) {
       resEl.style.display = 'block';
-      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Aguardando o encerramento automático.';
+      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Taxa 10%; 90% vai para o prêmio compartilhado. Aguardando o encerramento automático.';
     }
     let rodadaFinal=null;
     for(let tentativa=0;tentativa<25;tentativa++){
