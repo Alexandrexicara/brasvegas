@@ -6,6 +6,9 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const { randomInt } = require('crypto');
 const path = require('path');
+const fs = require('fs');
+const https = require('https');
+const { randomBytes } = require('crypto');
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -35,6 +38,68 @@ app.disable('x-powered-by');
 app.use(cors({ origin: (process.env.CORS_ORIGINS || '').split(',').filter(Boolean), credentials: false }));
 app.use(express.json({ limit: '100kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+let sicoobTokenCache = null;
+function sicoobConfigured() {
+  return !!(process.env.SICOOB_CLIENT_ID && process.env.SICOOB_CLIENT_SECRET &&
+    process.env.SICOOB_CERT_PATH && process.env.SICOOB_KEY_PATH && process.env.SICOOB_PIX_KEY);
+}
+function sicoobRequest(url, options = {}, body = null) {
+  return new Promise((resolve, reject) => {
+    const cert = fs.readFileSync(process.env.SICOOB_CERT_PATH);
+    const key = fs.readFileSync(process.env.SICOOB_KEY_PATH);
+    const data = body ? Buffer.from(typeof body === 'string' ? body : JSON.stringify(body)) : null;
+    const req = https.request(url, {
+      method: options.method || 'GET',
+      cert, key,
+      headers: { ...(options.headers || {}), ...(data ? { 'Content-Length': data.length } : {}) },
+      timeout: 15000
+    }, response => {
+      let raw = '';
+      response.setEncoding('utf8');
+      response.on('data', chunk => raw += chunk);
+      response.on('end', () => {
+        let parsed = {};
+        try { parsed = raw ? JSON.parse(raw) : {}; } catch { parsed = { raw }; }
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          const err = new Error(parsed.detail || parsed.title || parsed.message || ('Sicoob HTTP ' + response.statusCode));
+          err.statusCode = response.statusCode; return reject(err);
+        }
+        resolve(parsed);
+      });
+    });
+    req.on('timeout', () => req.destroy(new Error('Tempo esgotado na comunicação com Sicoob.')));
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+async function obterTokenSicoob() {
+  if (!sicoobConfigured()) throw new Error('Integração Sicoob ainda não configurada: faltam credenciais e certificado mTLS.');
+  if (sicoobTokenCache && sicoobTokenCache.expiresAt > Date.now() + 30000) return sicoobTokenCache.token;
+  const authUrl = process.env.SICOOB_AUTH_URL || 'https://apis.sisbr.com.br/cooperado/pix/token';
+  const form = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: process.env.SICOOB_CLIENT_ID,
+    client_secret: process.env.SICOOB_CLIENT_SECRET,
+    scope: process.env.SICOOB_SCOPE || 'cob.write cob.read'
+  }).toString();
+  const result = await sicoobRequest(authUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+  }, form);
+  if (!result.access_token) throw new Error('Sicoob não retornou token de acesso.');
+  sicoobTokenCache = { token: result.access_token, expiresAt: Date.now() + (Number(result.expires_in || 300) * 1000) };
+  return sicoobTokenCache.token;
+}
+async function chamarApiPixSicoob(endpoint, method = 'GET', body = null) {
+  const token = await obterTokenSicoob();
+  const base = (process.env.SICOOB_API_URL || 'https://apis.sisbr.com.br/cooperado/pix/api/v2').replace(/\/$/, '');
+  return sicoobRequest(base + endpoint, {
+    method,
+    headers: { Authorization: 'Bearer ' + token, client_id: process.env.SICOOB_CLIENT_ID, Accept: 'application/json', ...(body ? { 'Content-Type':'application/json' } : {}) }
+  }, body);
+}
 
 function auth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -128,6 +193,60 @@ app.get('/api/usuario', auth, async (req, res) => {
   );
   if (!rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado.' });
   res.json({ id:rows[0].id, nome_completo:rows[0].nome_completo, email:rows[0].email, saldo:Number(rows[0].saldo_disponivel), saldoReservado:Number(rows[0].saldo_reservado) });
+});
+
+app.post('/api/pix/cobrancas', auth, async (req, res) => {
+  if (!APOSTAS_REAIS_HABILITADAS) return res.status(503).json({ erro:'Compra de fichas com dinheiro real permanece bloqueada até liberação jurídica e bancária.' });
+  const valor = dinheiro(req.body?.valor);
+  if (!valor || valor < 1) return res.status(400).json({ erro:'Informe um valor válido a partir de R$ 1,00.' });
+  const client = await pool.connect();
+  try {
+    const txid = randomBytes(16).toString('hex');
+    const cobranca = await chamarApiPixSicoob('/cob/' + txid, 'PUT', {
+      calendario: { expiracao: 3600 },
+      valor: { original: valor.toFixed(2) },
+      chave: process.env.SICOOB_PIX_KEY,
+      solicitacaoPagador: 'Compra de fichas BrasVegas'
+    });
+    await client.query(
+      "INSERT INTO cobrancas_pix(usuario_id,provedor,referencia_provedor,txid,valor,status,copia_cola) VALUES($1,'sicoob',$2,$3,$4,'pendente',$5)",
+      [req.usuarioId,txid,txid,valor,cobranca.pixCopiaECola || null]
+    );
+    res.status(201).json({ sucesso:true, txid, valor, status:cobranca.status || 'ATIVA', pixCopiaECola:cobranca.pixCopiaECola || null, expiracaoSegundos:3600 });
+  } catch (e) {
+    console.error('Sicoob criar cobrança:',e.message);
+    res.status(502).json({ erro:'Não foi possível criar a cobrança Pix no Sicoob. Verifique a habilitação da API e as credenciais.' });
+  } finally { client.release(); }
+});
+
+app.post('/api/pix/cobrancas/:id/confirmar', auth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const c = await client.query("SELECT * FROM cobrancas_pix WHERE id=$1 AND usuario_id=$2 AND provedor='sicoob' FOR UPDATE", [req.params.id,req.usuarioId]);
+    if (!c.rows[0]) return res.status(404).json({ erro:'Cobrança não encontrada.' });
+    if (c.rows[0].status === 'paga') return res.json({ sucesso:true, confirmado:true, mensagem:'Pix já confirmado anteriormente.' });
+    const banco = await chamarApiPixSicoob('/cob/' + encodeURIComponent(c.rows[0].txid));
+    if (banco.status !== 'CONCLUIDA') return res.status(202).json({ sucesso:false, confirmado:false, status:banco.status || 'PENDENTE', mensagem:'O Sicoob ainda não confirmou o pagamento.' });
+    const valorBanco = Number(banco.valor?.original);
+    if (!Number.isFinite(valorBanco) || Math.abs(valorBanco - Number(c.rows[0].valor)) > 0.001 || banco.txid !== c.rows[0].txid)
+      return res.status(409).json({ erro:'Os dados da cobrança retornados pelo banco não conferem.' });
+    await client.query('BEGIN');
+    const locked = await client.query("SELECT * FROM cobrancas_pix WHERE id=$1 FOR UPDATE", [req.params.id]);
+    if (locked.rows[0].status !== 'paga') {
+      const w = await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE', [req.usuarioId]);
+      const antes = Number(w.rows[0].saldo_disponivel), reservado = Number(w.rows[0].saldo_reservado), amount = Number(locked.rows[0].valor);
+      await client.query('UPDATE carteiras SET saldo_disponivel=saldo_disponivel+$1,updated_at=NOW() WHERE id=$2', [amount,w.rows[0].id]);
+      await client.query("INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'pix_credito',$3,$4,$5,$6,$7,'pix',$8,$9,'Crédito confirmado por consulta autenticada ao Sicoob')", [w.rows[0].id,req.usuarioId,amount,antes,antes+amount,reservado,reservado,locked.rows[0].id,'pix:'+locked.rows[0].txid]);
+      await client.query("UPDATE cobrancas_pix SET status='paga',pago_em=NOW() WHERE id=$1", [req.params.id]);
+    }
+    await client.query('COMMIT');
+    const saldo = await client.query('SELECT saldo_disponivel FROM carteiras WHERE usuario_id=$1',[req.usuarioId]);
+    res.json({ sucesso:true, confirmado:true, saldo:Number(saldo.rows[0].saldo_disponivel) });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('Sicoob confirmar cobrança:',e.message);
+    res.status(502).json({ erro:'Não foi possível confirmar o Pix com o Sicoob neste momento.' });
+  } finally { client.release(); }
 });
 
 app.get('/api/jogos', async (_req, res) => {
