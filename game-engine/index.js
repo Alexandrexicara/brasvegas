@@ -132,4 +132,78 @@ function verifyFairCommitment(serverSeed,commitment) {
   return createHash('sha256').update(serverSeed).digest('hex')===commitment;
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment};
+
+function rouletteBetWins(selection,result) {
+  if (!selection || typeof selection !== 'object') return false;
+  const type=selection.type||selection.tipo;
+  const red=RED.has(result.number), black=result.number!==0&&!red;
+  if(type==='number'||type==='numero') return Number(selection.number??selection.numero)===result.number;
+  if(type==='red'||type==='vermelho') return red;
+  if(type==='black'||type==='preto') return black;
+  if(type==='green'||type==='verde') return result.number===0;
+  if(type==='even'||type==='par') return result.number!==0&&result.number%2===0;
+  if(type==='odd'||type==='impar') return result.number%2===1;
+  if(type==='low') return result.number>=1&&result.number<=18;
+  if(type==='high') return result.number>=19&&result.number<=36;
+  if(type==='dozen') {const n=Number(selection.value);return Number.isInteger(n)&&n>=1&&n<=3&&result.number>=(n-1)*12+1&&result.number<=n*12;}
+  if(type==='column') {const n=Number(selection.value);return Number.isInteger(n)&&n>=1&&n<=3&&result.number!==0&&result.number%3===(n%3);}
+  return false;
+}
+function fruitResult() {
+  const symbols=['🍎','🍋','🍇','🍊','🍓','⭐'];
+  const paytable={'🍎':20,'🍋':15,'🍇':10,'🍊':8,'🍓':5,'⭐':50};
+  return slotResult(symbols,paytable);
+}
+function playBlackjack(actions=[]) {
+  const cards=shuffle(Array.from({length:6},()=>deck()).flat());
+  const player=[cards.pop(),cards.pop()],dealer=[cards.pop(),cards.pop()];
+  let actionIndex=0;
+  while(actionIndex<Math.min(actions.length,10)) {
+    const action=actions[actionIndex++];
+    if(action==='stand') break;
+    if(action==='hit') { player.push(cards.pop()); if(blackjackTotal(player)>=21) break; continue; }
+    throw new Error('Ação de blackjack inválida.');
+  }
+  let playerTotal=blackjackTotal(player);
+  if(playerTotal<=21) while(blackjackTotal(dealer)<17) dealer.push(cards.pop());
+  const dealerTotal=blackjackTotal(dealer);
+  let outcome='lose';
+  if(playerTotal>21) outcome='bust';
+  else if(dealerTotal>21||playerTotal>dealerTotal) outcome=player.length===2&&playerTotal===21?'blackjack':'win';
+  else if(playerTotal===dealerTotal) outcome='push';
+  return {player,dealer,playerTotal,dealerTotal,outcome};
+}
+function resolveRound(code,bets) {
+  if(!Array.isArray(bets)||bets.length===0) throw new Error('Rodada sem apostas.');
+  const byBetId={}; let result; let winnerIds=[];
+  const win=(b)=>winnerIds.push(b.id);
+  if(code==='roleta') {
+    result=rouletteResult(); bets.forEach(b=>{if(rouletteBetWins(b.selecao,result))win(b);});
+  } else if(code==='bacara') {
+    result=dealBaccarat();
+    bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;const chosen=s==='banker'||s==='banco'?'banker':s==='player'||s==='jogador'?'player':s==='tie'||s==='empate'?'tie':null;if(chosen===result.winner)win(b);});
+  } else if(code==='craps') {
+    const pass=crapsResult('pass'); result=pass;
+    bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;if(s==='pass'||s==='passar'&&pass.outcome==='win'||s==='dont_pass'||s==='naopassar') {const betType=s==='dont_pass'||s==='naopassar'?'dont_pass':'pass';const outcome=betType==='pass'?pass.outcome:pass.outcome==='win'?'lose':pass.outcome==='lose'?'win':'push';if(outcome==='win')win(b);}});
+  } else if(code==='dados') {
+    result=diceResult(); bets.forEach(b=>{if(evaluateDiceBet(b.selecao,result))win(b);});
+  } else if(code==='caca-niqueis'||code==='frutas') {
+    for(const b of bets){const r=code==='frutas'?fruitResult():slotResult(['🍒','🍋','🍊','🍇','💎','⭐'],{'🍒':10,'🍋':15,'🍊':20,'🍇':30,'💎':50,'⭐':100});byBetId[b.id]=r;if(r.multiplier>0)win(b);}
+    result={tipo:'resultado_individual',porAposta:byBetId};
+  } else if(code==='parede-sorte') {
+    const multipliers=[1,2,5,10,25,50,100,500];let best=-Infinity;
+    for(const b of bets){const r=wallResult(multipliers);byBetId[b.id]=r;if(r.multiplier>best){best=r.multiplier;winnerIds=[b.id];}else if(r.multiplier===best)winnerIds.push(b.id);}
+    result={tipo:'parede_sorte',maiorMultiplicador:best,porAposta:byBetId};
+  } else if(code==='blackjack') {
+    let best=-1;
+    for(const b of bets){const actions=Array.isArray(b.selecao?.actions)?b.selecao.actions:['stand'];const r=playBlackjack(actions);byBetId[b.id]=r;if(r.outcome==='win'||r.outcome==='blackjack'){if(r.playerTotal>best){best=r.playerTotal;winnerIds=[b.id];}else if(r.playerTotal===best)winnerIds.push(b.id);}}
+    result={tipo:'blackjack',porAposta:byBetId};
+  } else if(code==='poquer') {
+    let best=null;
+    for(const b of bets){const hand=shuffle(deck()).slice(0,5),rank=pokerRank(hand);byBetId[b.id]={hand,rank};if(!best||comparePoker(hand,best.hand)>0){best={hand};winnerIds=[b.id];}else if(comparePoker(hand,best.hand)===0)winnerIds.push(b.id);}
+    result={tipo:'poquer',porAposta:byBetId};
+  } else throw new Error('Jogo sem motor de resultado: '+code);
+  return {result,winnerIds,byBetId};
+}
+
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,resolveRound};
