@@ -56,6 +56,7 @@ async function criarTabelas() {
       senha TEXT NOT NULL,
       saldo NUMERIC DEFAULT 0,
       status TEXT DEFAULT 'ativo',
+      papel TEXT NOT NULL DEFAULT 'usuario',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -82,7 +83,9 @@ async function criarTabelas() {
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
   `);
-  console.log('✅ Tabelas verificadas/criadas!');
+  await pool.query("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS papel TEXT NOT NULL DEFAULT 'usuario'");
+  await pool.query("UPDATE usuarios SET papel = 'admin' WHERE lower(email) = lower($1)", ['santossilvac992@gmail.com']);
+  console.log('✅ Tabelas e perfil administrativo verificados!');
 }
 criarTabelas().catch(e => console.log('⚠️  Tabelas: precisa criar banco primeiro:', e.message));
 
@@ -154,16 +157,16 @@ app.post('/api/login', async (req, res) => {
   const token = jwt.sign({ id: user.id }, JWT_SECRET, { expiresIn: '24h' });
   res.json({
     sucesso: true, token,
-    usuario: { id: user.id, nome: user.nome_completo, email: user.email, saldo: Number(user.saldo) }
+    usuario: { id: user.id, nome: user.nome_completo, email: user.email, saldo: Number(user.saldo), papel: user.papel || 'usuario' }
   });
 });
 
 app.get('/api/usuario', auth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT id, nome_completo, cpf, email, saldo FROM usuarios WHERE id = $1', [req.usuarioId]
+    'SELECT id, nome_completo, cpf, email, saldo, papel FROM usuarios WHERE id = $1', [req.usuarioId]
   );
   if (!rows[0]) return res.status(404).json({ erro: 'Usuário não encontrado' });
-  res.json({ ...rows[0], saldo: Number(rows[0].saldo) });
+  res.json({ ...rows[0], saldo: Number(rows[0].saldo), admin: rows[0].papel === 'admin' });
 });
 
 app.post('/api/deposito', auth, async (req, res) => {
@@ -188,12 +191,13 @@ app.post('/api/roleta/apostar', auth, async (req, res) => {
   const { tipoAposta, valor, numeroEscolhido } = req.body;
   if (!valor || valor <= 0) return res.json({ erro: 'Valor inválido' });
 
-  const usuarioAntes = await pool.query('SELECT saldo FROM usuarios WHERE id = $1', [req.usuarioId]);
+  const usuarioAntes = await pool.query('SELECT saldo, papel FROM usuarios WHERE id = $1', [req.usuarioId]);
   const saldoAntes = Number(usuarioAntes.rows[0].saldo);
-  if (valor > saldoAntes) return res.json({ erro: 'Saldo insuficiente' });
+  const isAdmin = usuarioAntes.rows[0].papel === 'admin';
+  if (!isAdmin && valor > saldoAntes) return res.json({ erro: 'Saldo insuficiente' });
 
-  // Deduz valor da aposta
-  await pool.query('UPDATE usuarios SET saldo = saldo - $1 WHERE id = $2', [valor, req.usuarioId]);
+  // Administrador joga em modo de teste sem movimentar saldo.
+  if (!isAdmin) await pool.query('UPDATE usuarios SET saldo = saldo - $1 WHERE id = $2', [valor, req.usuarioId]);
 
   // Sorteia número
   const numeroSorteado = Math.floor(Math.random() * 37);
@@ -212,7 +216,7 @@ app.post('/api/roleta/apostar', auth, async (req, res) => {
   }
 
   // Credita prêmio se ganhou
-  if (ganhou) {
+  if (ganhou && !isAdmin) {
     await pool.query('UPDATE usuarios SET saldo = saldo + $1 WHERE id = $2', [valorGanho, req.usuarioId]);
   }
 
@@ -228,9 +232,30 @@ app.post('/api/roleta/apostar', auth, async (req, res) => {
 
   res.json({
     sucesso: true, numero: numeroSorteado, cor: corSorteada,
-    ganhou, valorGanho, saldo: saldoFinal
+    ganhou, valorGanho, saldo: saldoFinal, modoAdmin: isAdmin
   });
 });
+
+
+async function adminAuth(req,res,next) {
+  try {
+    const q=await pool.query("SELECT papel FROM usuarios WHERE id=$1 AND status='ativo'",[req.usuarioId]);
+    if(q.rows[0]?.papel!=='admin') return res.status(403).json({erro:'Acesso restrito ao administrador'});
+    next();
+  } catch(e) { return res.status(500).json({erro:'Falha ao validar administrador'}); }
+}
+app.get('/api/admin/resumo',auth,adminAuth,async(req,res)=>{
+ try {
+  const [u,t,a,g]=await Promise.all([
+   pool.query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status='ativo')::int AS ativos FROM usuarios"),
+   pool.query("SELECT COALESCE(SUM(valor),0)::numeric AS faturamento, COUNT(*)::int AS total FROM transacoes WHERE lower(tipo) IN ('deposito','pagamento') AND lower(COALESCE(status,'')) IN ('concluido','aprovado','pago')"),
+   pool.query("SELECT COUNT(*)::int AS total, COALESCE(SUM(valor),0)::numeric AS volume, COALESCE(SUM(valor_premio),0)::numeric AS premios FROM apostas"),
+   pool.query("SELECT id,nome_completo,email,saldo,status,papel,created_at FROM usuarios ORDER BY created_at DESC LIMIT 100")
+  ]);
+  res.json({usuarios:u.rows[0],financeiro:t.rows[0],apostas:a.rows[0],ultimosUsuarios:g.rows});
+ } catch(e) { res.status(500).json({erro:'Não foi possível carregar o painel'}); }
+});
+app.get('/admin',(req,res)=>res.sendFile(path.join(__dirname,'public','admin.html')));
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
