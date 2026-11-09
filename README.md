@@ -41,7 +41,7 @@ npm test
 npm start
 ```
 
-O servidor usa a pasta `public/` para as telas e `game-engine/` para as regras de jogo.
+O servidor usa a pasta `public/` para as telas e `game-engine/` para as regras de jogo. O endpoint `/api/health` verifica a disponibilidade da API e a conexão com o PostgreSQL.
 
 ## Segurança e produção
 
