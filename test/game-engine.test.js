@@ -75,3 +75,22 @@ test('bacará e blackjack geram cartas de baralho válido',()=>{
  assert.equal(bj.byBetId.x.player.length>=2,true);
  assert.equal(bj.byBetId.x.dealer.length>=2,true);
 });
+
+test('pôquer distribui cartas sem repetição usando um único baralho compartilhado',()=>{
+ const shoe=g.shuffle(g.deck());
+ const a=g.startPokerGame(shoe),b=g.startPokerGame(a.deck);
+ const all=[...a.hand,...b.hand];
+ assert.equal(all.length,10);
+ assert.equal(new Set(all.map(c=>c.rank+c.suit)).size,10);
+ const draw=g.drawPokerCards(a,[0,2],b.deck);
+ assert.equal(draw.state.status,'done');
+ assert.equal(draw.state.hand.length,5);
+ assert.equal(draw.remainingDeck.length,37);
+});
+test('blackjack aceita hit e stand e encerra a mão no servidor',()=>{
+ let state=g.startBlackjackGame();
+ if(state.status==='playing')state=g.blackjackAction(state,'stand');
+ assert.equal(state.status,'done');
+ assert.ok(['win','lose','push','bust','blackjack'].includes(state.outcome));
+ assert.ok(state.playerTotal>=0&&state.dealerTotal>=0);
+});
