@@ -68,3 +68,46 @@ footer { background: #000; padding: 30px 20px; margin-top: 60px; border-top: 1px
 .auth-container input.campo-erro, .campo-erro { border-color: #ff4d4d !important; box-shadow: 0 0 0 2px rgba(255,77,77,.18); }
 .mensagem-campo-erro { display: block; color: #ff8b8b; font-size: 12px; margin: -3px 0 7px 3px; }
 @media (max-width: 600px) { .avisos-brasvegas { top: 10px; right: 10px; width: calc(100vw - 20px); } }
+
+/* Salão principal BRASVEGAS */
+.pagina-salao { background:#100b08; background-image:radial-gradient(ellipse at 50% 15%,rgba(132,67,19,.24),transparent 50%),linear-gradient(180deg,#100b08,#17100c 55%,#090706); }
+.topo-salao { gap:18px; flex-wrap:wrap; background:linear-gradient(90deg,#210b08,#4a160d 48%,#210b08); border-bottom:2px solid #b88a35; }
+.topo-salao .logo { text-decoration:none; }
+.boas-vindas { color:#f2d58a; letter-spacing:3px; font-size:12px; font-weight:800; }
+.salao-conteudo { max-width:1440px; padding:24px clamp(14px,3vw,42px) 50px; margin:auto; }
+.salao-banner { min-height:290px; position:relative; overflow:hidden; display:flex; align-items:center; padding:42px clamp(22px,5vw,70px); border:1px solid #9b7131; border-radius:18px; background:linear-gradient(90deg,rgba(13,8,5,.94),rgba(30,12,7,.76) 55%,rgba(15,7,5,.35)),url('https://images.unsplash.com/photo-1596838132731-3301c3fd4317?auto=format&fit=crop&w=1800&q=85') center 48%/cover,linear-gradient(120deg,#45180f,#17100b); box-shadow:0 16px 50px #0009,inset 0 0 50px #0008; }
+.banner-luzes { position:absolute; top:17px; right:24px; color:#f3cf75; letter-spacing:4px; font-size:10px; text-shadow:0 0 12px #ffbd3d; }
+.banner-texto { position:relative; z-index:1; max-width:650px; }
+.selo-salao { color:#f2cb72; font-size:11px; font-weight:900; letter-spacing:3px; }
+.banner-texto h1 { margin:12px 0; color:#ffe5a2; font-size:clamp(30px,5vw,52px); line-height:1.05; text-shadow:0 3px 18px #000; }
+.banner-texto p { color:#f2e7d4; font-size:16px; margin-bottom:23px; }
+.banner-ornamento { position:absolute; right:7%; bottom:-38px; font-size:clamp(65px,10vw,130px); letter-spacing:8px; color:#e6c57a; opacity:.32; transform:rotate(-12deg); text-shadow:0 0 25px #d99b37; }
+.faixa-categoria { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:32px 2px 17px; padding-bottom:12px; border-bottom:1px solid #64451f; color:#f5d58e; font-size:12px; font-weight:900; letter-spacing:2px; }
+.faixa-categoria>span { color:#9b8a70; font-size:10px; }
+.ponto-aceso { display:inline-block; width:8px; height:8px; margin-right:8px; border-radius:50%; background:#55e78a; box-shadow:0 0 12px #55e78a; }
+.grade-jogos { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:19px; }
+.cartao-jogo { min-width:0; display:flex; flex-direction:column; overflow:hidden; text-decoration:none; color:#fff; border:1px solid #654b2d; border-radius:14px; background:linear-gradient(145deg,#282019,#15100d); box-shadow:0 8px 22px #0008; transition:transform .22s,border-color .22s,box-shadow .22s; }
+.cartao-jogo:hover,.cartao-jogo:focus-visible { transform:translateY(-5px); border-color:#e0b75e; box-shadow:0 13px 28px #000b,0 0 18px #b77a2633; outline:none; }
+.jogo-arte { min-height:145px; position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden; background:radial-gradient(ellipse at 50% 110%,#bd8132 0,transparent 48%),linear-gradient(135deg,#4a1710,#17100d 70%); border-bottom:1px solid #77572e; }
+.jogo-arte:before,.jogo-arte:after { content:""; position:absolute; width:180px; height:180px; border:1px solid #e6c16b44; border-radius:50%; }
+.jogo-arte:after { width:130px; height:130px; }
+.jogo-icone { position:relative; z-index:1; font-size:66px; filter:drop-shadow(0 7px 8px #0009); transition:transform .2s; }
+.cartao-jogo:hover .jogo-icone { transform:scale(1.12) rotate(-4deg); }
+.jogo-etiqueta { position:absolute; top:12px; left:13px; padding:5px 9px; border:1px solid #d9b66b88; border-radius:20px; background:#120c0bc9; color:#f3d58f; font-size:9px; font-weight:900; letter-spacing:1.5px; }
+.jogo-info { padding:16px 18px 17px; }
+.jogo-info h2 { color:#f4d38d; font-size:20px; margin-bottom:7px; }
+.jogo-info p { min-height:40px; color:#bdb2a2; font-size:13px; line-height:1.5; }
+.link-jogar { display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:12px; border-top:1px solid #ffffff1c; color:#e9bf67; font-size:10px; font-weight:900; letter-spacing:1.5px; }
+.link-jogar b { font-size:20px; }
+.jogo-blackjack .jogo-arte { background:radial-gradient(ellipse at 50% 110%,#297b4b,transparent 55%),linear-gradient(135deg,#092d20,#101712); }
+.jogo-bacara .jogo-arte { background:radial-gradient(ellipse at 50% 110%,#285c8b,transparent 55%),linear-gradient(135deg,#101c39,#111019); }
+.jogo-poquer .jogo-arte { background:radial-gradient(ellipse at 50% 110%,#32714a,transparent 55%),linear-gradient(135deg,#09281d,#10130e); }
+.jogo-slots .jogo-arte,.jogo-frutas .jogo-arte { background:radial-gradient(ellipse at 50% 110%,#a75b19,transparent 55%),linear-gradient(135deg,#43140f,#1c100d); }
+.jogo-dados .jogo-arte,.jogo-craps .jogo-arte { background:radial-gradient(ellipse at 50% 110%,#526b85,transparent 55%),linear-gradient(135deg,#172638,#101116); }
+.jogo-parede .jogo-arte { background:radial-gradient(ellipse at 50% 110%,#547a2c,transparent 55%),linear-gradient(135deg,#182b13,#10140d); }
+.salao-ajuda { display:flex; align-items:center; gap:15px; margin-top:28px; padding:17px 20px; border:1px solid #594325; border-radius:12px; background:#21170f; }
+.salao-ajuda>span { color:#d6ae5d; font-size:28px; }
+.salao-ajuda strong { color:#f2d58e; }
+.salao-ajuda p { margin-top:4px; color:#bdb2a2; font-size:13px; line-height:1.5; }
+@media(max-width:900px) { .grade-jogos { grid-template-columns:repeat(2,minmax(0,1fr)); } .boas-vindas { display:none; } }
+@media(max-width:560px) { .topo-salao { padding:12px 14px; gap:9px; } .topo-salao .logo { font-size:19px; } .topo-salao .saldo-header { padding:7px 10px; font-size:13px; } .topo-salao .nav-botoes { width:100%; justify-content:space-between; } .topo-salao .nav-botoes .btn { flex:1; padding:9px 10px; font-size:12px; } .salao-banner { min-height:255px; padding:30px 22px; background-position:58% center; } .banner-luzes { font-size:8px; letter-spacing:2px; } .banner-texto p { max-width:260px; font-size:14px; } .grade-jogos { grid-template-columns:1fr; gap:13px; } .cartao-jogo { display:grid; grid-template-columns:112px minmax(0,1fr); min-height:138px; } .jogo-arte { min-height:100%; border-bottom:0; border-right:1px solid #77572e; } .jogo-icone { font-size:48px; } .jogo-etiqueta { top:8px; left:6px; font-size:7px; padding:4px 6px; } .jogo-info { padding:13px 13px; } .jogo-info h2 { font-size:18px; } .jogo-info p { min-height:0; font-size:12px; } .link-jogar { margin-top:9px; padding-top:8px; font-size:9px; } .banner-ornamento { right:-8px; opacity:.2; } .faixa-categoria { font-size:10px; letter-spacing:1px; } }
