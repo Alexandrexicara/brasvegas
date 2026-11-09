@@ -49,9 +49,9 @@ function sair() { localStorage.clear(); window.location.href='index.html'; }
 
 async function carregarSaldo() {
   if (!token) return;
-  const res = await fetch(`${API_BASE}/usuario`, { headers: { 'Authorization': token } });
+  const res = await fetch(`${API_BASE}/usuario`, { headers: { 'Authorization': 'Bearer ' + token } });
   const d = await res.json();
-  if (d.saldo && usuario) usuario.saldo = d.saldo;
+  if (typeof d.saldo === 'number' && usuario) { usuario.saldo = d.saldo; localStorage.setItem('brasvegas-user', JSON.stringify(usuario)); }
   atualizarInterface();
 }
 
@@ -70,26 +70,39 @@ async function girarRoleta() {
   const valor = Number(document.getElementById('valor-aposta')?.value);
   const numero = document.getElementById('numero-escolhido')?.value;
   if (!valor || valor <= 0) return alert('Valor inválido!');
+  const selecao = apostaEscolhida === 'numero'
+    ? { tipo: 'numero', numero: Number(numero) }
+    : { tipo: apostaEscolhida };
   const roleta = document.getElementById('roleta');
   if (roleta) roleta.classList.add('girando');
-  setTimeout(async () => {
-    const res = await fetch(`${API_BASE}/roleta/apostar`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': token },
-      body: JSON.stringify({ tipoAposta: apostaEscolhida, valor, numeroEscolhido: numero })
+  try {
+    const rodadaRes = await fetch(`${API_BASE}/jogos/roleta/rodada-atual`, {
+      headers: { 'Authorization': 'Bearer ' + token }
     });
-    const d = await res.json();
-    if (roleta) roleta.classList.remove('girando');
-    if (d.erro) return alert(d.erro);
+    const rodadaData = await rodadaRes.json();
+    if (!rodadaRes.ok) throw new Error(rodadaData.erro || 'Não foi possível abrir a rodada.');
+    const apostaRes = await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}/apostas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ valor, selecao })
+    });
+    const d = await apostaRes.json();
+    if (!apostaRes.ok) throw new Error(d.erro || 'Aposta não registrada.');
     const resEl = document.getElementById('resultado');
     if (resEl) {
-      resEl.style.display='block';
-      resEl.innerHTML = `<p>Sorteado: <strong>${d.numero} — ${d.cor.toUpperCase()}</strong></p>
-        <p style="color:${d.ganhou?'#39ff14':'#e50914'}">${d.ganhou?'✅ GANHOU! +R$ '+d.valorGanho.toFixed(2):'❌ PERDEU'}</p>
-        <p>Saldo: R$ ${d.saldo.toFixed(2)}</p>`;
+      resEl.style.display = 'block';
+      resEl.innerHTML = `<p><strong>APOSTA REGISTRADA</strong></p>
+        <p>Rodada #${rodadaData.rodada.numero}</p>
+        <p>Taxa da plataforma: 10%</p>
+        <p>Valor reservado para o prêmio: R$ ${Number(d.valorReservadoParaPremio).toFixed(2)}</p>
+        <p>O resultado será publicado quando a rodada for encerrada.</p>`;
     }
-    if (usuario) usuario.saldo = d.saldo;
-    atualizarInterface();
-  }, 4000);
+    await carregarSaldo();
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    if (roleta) roleta.classList.remove('girando');
+  }
 }
 
 async function confirmarDeposito() {
