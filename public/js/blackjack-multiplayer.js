@@ -47,7 +47,7 @@
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:{actions:[]}})});
    betId=bet.apostaId;roundId=current.rodada.id;
    showState(bet.gameState);
-   if(!finished){result.textContent='Sua mão foi distribuída pelo servidor. Escolha pedir ou parar.';}
+   if(!finished){result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Sua mão foi distribuída pelo servidor. Escolha pedir ou parar.';}
    await refreshBalance();
   }catch(e){result.textContent=e.message;newBtn.disabled=false;}
   finally{busy=false;}
@@ -72,7 +72,7 @@
   }
   if(final){
    const detail=final.resultado?.byBetId?.[betId];
-   result.textContent=(final.aposta?.status==='paga'?'VOCÊ GANHOU · ':'RODADA ENCERRADA · ')+(detail?.outcome||'resultado apurado')+' · Prêmio R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
+   result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ GANHOU · ':'RODADA ENCERRADA · ')+(detail?.outcome||'resultado apurado')+' · Prêmio R$ '+Number(final.aposta?.premioRecebido||0).toFixed(2);
    await refreshBalance();
   }else result.textContent+=' Resultado da rodada será atualizado quando encerrar.';
   newBtn.disabled=false;
