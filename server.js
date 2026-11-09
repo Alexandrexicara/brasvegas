@@ -197,9 +197,9 @@ app.post('/api/roleta/apostar', auth, async (req, res) => {
 
   // Sorteia número
   const numeroSorteado = Math.floor(Math.random() * 37);
-  const cores = {}; cores[0] = 'verde';
-  for (let i = 1; i <= 36; i++) cores[i] = i % 2 === 1 ? 'vermelho' : 'preto';
-  const corSorteada = cores[numeroSorteado];
+  // Cores oficiais da roleta europeia de zero único.
+  const numerosVermelhos = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+  const corSorteada = numeroSorteado === 0 ? 'verde' : numerosVermelhos.has(numeroSorteado) ? 'vermelho' : 'preto';
 
   let ganhou = false, valorGanho = 0;
   if (tipoAposta === corSorteada) {
