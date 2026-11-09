@@ -194,6 +194,35 @@ function validateBetSelection(code,selection) {
   return false;
 }
 
+
+function resolveBlackjackTable(bets) {
+  const cards=shuffle(Array.from({length:8},()=>deck()).flat());
+  const players=bets.map(b=>({betId:b.id,hand:[cards.pop(),cards.pop()],actions:Array.isArray(b.selecao?.actions)?b.selecao.actions:['stand']}));
+  const dealer=[cards.pop(),cards.pop()];
+  for(const p of players) {
+    for(const action of p.actions.slice(0,10)) {
+      if(action==='stand') break;
+      if(action!=='hit') throw new Error('Ação de blackjack inválida.');
+      p.hand.push(cards.pop());
+      if(blackjackTotal(p.hand)>=21) break;
+    }
+  }
+  while(blackjackTotal(dealer)<17) dealer.push(cards.pop());
+  const dealerTotal=blackjackTotal(dealer);
+  const byBetId={}; const winnerIds=[];
+  for(const p of players) {
+    const total=blackjackTotal(p.hand);
+    let outcome='lose';
+    if(total>21) outcome='bust';
+    else if(total===21&&p.hand.length===2&&dealerTotal!==21) outcome='blackjack';
+    else if(dealerTotal>21||total>dealerTotal) outcome='win';
+    else if(total===dealerTotal) outcome='push';
+    byBetId[p.betId]={player:p.hand,dealer,playerTotal:total,dealerTotal,outcome};
+    if(outcome==='win'||outcome==='blackjack') winnerIds.push(p.betId);
+  }
+  return {result:{tipo:'blackjack_table',dealer,dealerTotal,porAposta:byBetId},winnerIds,byBetId};
+}
+
 function resolveRound(code,bets) {
   if(!Array.isArray(bets)||bets.length===0) throw new Error('Rodada sem apostas.');
   const byBetId={}; let result; let winnerIds=[];
@@ -205,7 +234,7 @@ function resolveRound(code,bets) {
     bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;const chosen=s==='banker'||s==='banco'?'banker':s==='player'||s==='jogador'?'player':s==='tie'||s==='empate'?'tie':null;if(chosen===result.winner)win(b);});
   } else if(code==='craps') {
     const pass=crapsResult('pass'); result=pass;
-    bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;const betType=s==='dont_pass'||s==='naopassar'?'dont_pass':s==='pass'||s==='passar'?'pass':null;if(!betType) return;const outcome=betType==='pass'?pass.outcome:pass.outcome==='win'?'lose':pass.outcome==='lose'?'win':'push';if(outcome==='win')win(b);});
+    bets.forEach(b=>{const s=b.selecao?.type||b.selecao?.tipo;const betType=s==='dont_pass'||s==='naopassar'?'dont_pass':s==='pass'||s==='passar'?'pass':null;if(!betType) return;const firstSum=pass.rolls[0][0]+pass.rolls[0][1];const outcome=betType==='pass'?pass.outcome:(firstSum===12?'push':pass.outcome==='win'?'lose':'win');if(outcome==='win')win(b);});
   } else if(code==='dados') {
     result=diceResult(); bets.forEach(b=>{if(evaluateDiceBet(b.selecao,result))win(b);});
   } else if(code==='caca-niqueis'||code==='frutas') {
@@ -216,9 +245,7 @@ function resolveRound(code,bets) {
     for(const b of bets){const r=wallResult(multipliers);byBetId[b.id]=r;if(r.multiplier>best){best=r.multiplier;winnerIds=[b.id];}else if(r.multiplier===best)winnerIds.push(b.id);}
     result={tipo:'parede_sorte',maiorMultiplicador:best,porAposta:byBetId};
   } else if(code==='blackjack') {
-    let best=-1;
-    for(const b of bets){const actions=Array.isArray(b.selecao?.actions)?b.selecao.actions:['stand'];const r=playBlackjack(actions);byBetId[b.id]=r;if(r.outcome==='win'||r.outcome==='blackjack'){if(r.playerTotal>best){best=r.playerTotal;winnerIds=[b.id];}else if(r.playerTotal===best)winnerIds.push(b.id);}}
-    result={tipo:'blackjack',porAposta:byBetId};
+    const table=resolveBlackjackTable(bets);result=table.result;winnerIds=table.winnerIds;Object.assign(byBetId,table.byBetId);
   } else if(code==='poquer') {
     let best=null;
     for(const b of bets){const hand=shuffle(deck()).slice(0,5),rank=pokerRank(hand);byBetId[b.id]={hand,rank};if(!best||comparePoker(hand,best.hand)>0){best={hand};winnerIds=[b.id];}else if(comparePoker(hand,best.hand)===0)winnerIds.push(b.id);}
@@ -227,4 +254,4 @@ function resolveRound(code,bets) {
   return {result,winnerIds,byBetId};
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveRound};
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,resolveRound};
