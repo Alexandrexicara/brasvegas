@@ -18,7 +18,16 @@ const pool = new Pool({
   database: process.env.DB_NOME || 'brasvegas',
   user: process.env.DB_USUARIO || 'postgres',
   password: process.env.DB_SENHA || '',
-  ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
+  ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false,
+  max: 5,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000,
+  keepAlive: true
+});
+
+// Evita que uma desconexão ociosa do Neon derrube todo o processo Node.
+pool.on('error', (err) => {
+  console.error('Conexão PostgreSQL ociosa foi encerrada; o pool irá substituir o cliente:', err.message);
 });
 
 // Testa conexão
