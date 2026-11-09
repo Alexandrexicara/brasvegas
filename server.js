@@ -118,7 +118,8 @@ function estadoSinucaPublico(s,usuarioId) {
   if(!s)return {status:'waiting',players:[],isMyTurn:false};
   const players=(s.players||[]).map(p=>({betId:p.betId,seat:p.seat,team:p.team,group:p.group}));
   const current=s.players?.[s.turn];
-  return {...s,players,currentPlayerBetId:current?.betId||null,isMyTurn:!!current&&current.userId===usuarioId};
+  const mine=s.players?.find(p=>p.userId===usuarioId);
+  return {...s,players,myBetId:mine?.betId||null,currentPlayerBetId:current?.betId||null,isMyTurn:!!current&&current.userId===usuarioId};
 }
 function selecaoPublica(s) {
   if (s && Array.isArray(s.player) && Array.isArray(s.dealer)) return { player:s.player, dealer:s.status==='done'?s.dealer:[s.dealer[0]], status:s.status, playerTotal:gameEngine.blackjackTotal(s.player), dealerTotal:s.status==='done'?gameEngine.blackjackTotal(s.dealer):null, outcome:s.status==='done'?s.outcome:null };
