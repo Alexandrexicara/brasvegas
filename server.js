@@ -14,10 +14,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'chave_temporaria_mudar_producao';
 // ==================== CONEXÃO POSTGRESQL ====================
 const pool = new Pool({
   host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORTA || 5432,
+  port: Number(process.env.DB_PORTA || 5432),
   database: process.env.DB_NOME || 'brasvegas',
   user: process.env.DB_USUARIO || 'postgres',
-  password: process.env.DB_SENHA || ''
+  password: process.env.DB_SENHA || '',
+  ssl: process.env.DB_HOST ? { rejectUnauthorized: false } : false
 });
 
 // Testa conexão
