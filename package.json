@@ -2,9 +2,9 @@
   "name": "brasvegas-plataforma",
   "version": "1.0.0",
   "description": "Plataforma de Jogos — Licenciada",
-  "main": "backend/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
