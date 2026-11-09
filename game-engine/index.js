@@ -174,6 +174,90 @@ function playBlackjack(actions=[]) {
   return {player,dealer,playerTotal,dealerTotal,outcome};
 }
 
+
+const TABLE={minX:42,maxX:958,minY:42,maxY:518,radius:12};
+const POCKETS=[[42,42],[500,36],[958,42],[42,518],[500,524],[958,518]];
+function createBilliardsRack() {
+  const balls=[{id:0,x:250,y:280,vx:0,vy:0,group:'cue',pocketed:false}];
+  let id=1;
+  for(let row=0;row<5;row++)for(let col=0;col<=row;col++){
+    const n=id++,group=n===8?'eight':n<=7?'solid':'stripe';
+    balls.push({id:n,x:690+row*23,y:280+(col-row/2)*26,vx:0,vy:0,group,pocketed:false});
+  }
+  return balls;
+}
+function startBilliardsGame(format,players) {
+  if(![2,4].includes(Number(format)))throw new Error('Sinuca aceita 2 jogadores ou 4 em duplas.');
+  if(!Array.isArray(players)||players.length!==Number(format))throw new Error('A mesa ainda não está completa.');
+  return {format:Number(format),status:'playing',players:players.map((p,i)=>({...p,seat:i,team:Number(format)===2?i:i%2,group:null})),balls:createBilliardsRack(),turn:0,groupsAssigned:false,winnerTeam:null,winnerBetIds:[],lastShot:null,shotNumber:0};
+}
+function simulateBilliardsShot(current,betId,angle,power) {
+  const state=JSON.parse(JSON.stringify(current));
+  if(state.status!=='playing')throw new Error('A partida não está em andamento.');
+  const player=state.players[state.turn];
+  if(!player||player.betId!==betId)throw new Error('Não é a vez deste jogador.');
+  if(!Number.isFinite(angle)||!Number.isFinite(power)||power<1||power>100)throw new Error('Direção ou força inválida.');
+  const cue=state.balls.find(b=>b.id===0&&!b.pocketed);
+  if(!cue)throw new Error('Bola branca indisponível.');
+  cue.vx=Math.cos(angle)*power*.17;cue.vy=Math.sin(angle)*power*.17;
+  let firstHit=null,scratch=false;const pocketed=[];
+  for(let step=0;step<1800;step++){
+    let moving=false;
+    for(const b of state.balls){
+      if(b.pocketed)continue;
+      b.x+=b.vx;b.y+=b.vy;b.vx*=.989;b.vy*=.989;
+      if(Math.abs(b.vx)+Math.abs(b.vy)>.045)moving=true;else{b.vx=0;b.vy=0;}
+      if(b.x<TABLE.minX+TABLE.radius){b.x=TABLE.minX+TABLE.radius;b.vx=Math.abs(b.vx)*.92;}
+      if(b.x>TABLE.maxX-TABLE.radius){b.x=TABLE.maxX-TABLE.radius;b.vx=-Math.abs(b.vx)*.92;}
+      if(b.y<TABLE.minY+TABLE.radius){b.y=TABLE.minY+TABLE.radius;b.vy=Math.abs(b.vy)*.92;}
+      if(b.y>TABLE.maxY-TABLE.radius){b.y=TABLE.maxY-TABLE.radius;b.vy=-Math.abs(b.vy)*.92;}
+      const pocket=POCKETS.find(([x,y])=>Math.hypot(b.x-x,b.y-y)<22);
+      if(pocket){b.pocketed=true;b.vx=0;b.vy=0;pocketed.push(b.id);if(b.id===0)scratch=true;}
+    }
+    for(let i=0;i<state.balls.length;i++)for(let j=i+1;j<state.balls.length;j++){
+      const a=state.balls[i],b=state.balls[j];if(a.pocketed||b.pocketed)continue;
+      const dx=b.x-a.x,dy=b.y-a.y,d=Math.hypot(dx,dy)||.001;
+      if(d<TABLE.radius*2){
+        if(a.id===0&&b.id!==8)firstHit=firstHit||b.id;
+        if(b.id===0&&a.id!==8)firstHit=firstHit||a.id;
+        const nx=dx/d,ny=dy/d,overlap=TABLE.radius*2-d;
+        a.x-=nx*overlap/2;a.y-=ny*overlap/2;b.x+=nx*overlap/2;b.y+=ny*overlap/2;
+        const rel=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;
+        if(rel>0){const impulse=rel*.97;a.vx-=impulse*nx;a.vy-=impulse*ny;b.vx+=impulse*nx;b.vy+=impulse*ny;}
+      }
+    }
+    if(!moving&&state.balls.every(b=>b.pocketed||Math.abs(b.vx)+Math.abs(b.vy)<.045))break;
+  }
+  const playerGroup=player.group;
+  const eight=state.balls.find(b=>b.id===8);
+  const ownGroup=playerGroup||null;
+  const firstBall=state.balls.find(b=>b.id===firstHit);
+  const foul=scratch||!firstHit||(ownGroup?firstBall?.group!==ownGroup:firstBall?.group==='eight');
+  if(!state.groupsAssigned&&!foul){
+    const firstPotted=pocketed.map(id=>state.balls.find(b=>b.id===id)).find(b=>b&&['solid','stripe'].includes(b.group));
+    if(firstPotted){
+      state.players.forEach(p=>{p.group=(p.team===player.team?firstPotted.group:firstPotted.group==='solid'?'stripe':'solid');});
+      state.groupsAssigned=true;
+    }
+  }
+  const remaining=ownGroup?state.balls.filter(b=>b.group===ownGroup&&!b.pocketed).length:null;
+  let gameFinished=false;
+  if(pocketed.includes(8)){
+    const valid=!!ownGroup&&remaining===0&&!foul;
+    state.status='finished';state.winnerTeam=valid?player.team:1-player.team;
+    state.winnerBetIds=state.players.filter(p=>p.team===state.winnerTeam).map(p=>p.betId);
+    gameFinished=true;
+  }
+  if(!gameFinished){
+    const ownPotted=pocketed.some(id=>{const b=state.balls.find(x=>x.id===id);return b&&b.group===player.group;});
+    if(foul||!ownPotted)state.turn=(state.turn+1)%state.players.length;
+    if(scratch){const white=state.balls.find(b=>b.id===0);white.pocketed=false;white.x=250;white.y=280;white.vx=0;white.vy=0;}
+  }
+  state.shotNumber++;
+  state.lastShot={playerBetId:betId,firstHit,pocketed,foul,turn:state.turn};
+  return state;
+}
+
 function validateBetSelection(code,selection) {
   if(!selection||typeof selection!=='object'||Array.isArray(selection)) return false;
   const type=selection.type||selection.tipo;
@@ -190,6 +274,7 @@ function validateBetSelection(code,selection) {
     (type==='total_under'&&Number.isInteger(Number(selection.value))&&selection.value>=3&&selection.value<=12) || type==='doubles';
   if(code==='blackjack') return Array.isArray(selection.actions)&&selection.actions.length<=10&&selection.actions.every(a=>a==='hit'||a==='stand');
   if(code==='poquer') return type==='draw'||type==='mao'||type==='hand';
+  if(code==='sinuca') return type==='join'&&[2,4].includes(Number(selection.format));
   if(code==='caca-niqueis'||code==='frutas'||code==='parede-sorte') return type==='spin'||type==='girar'||type==='drop'||type==='lancar';
   return false;
 }
@@ -254,7 +339,7 @@ function resolveBlackjackTable(bets) {
   return {result:{tipo:'blackjack',porAposta:byBetId},winnerIds,byBetId};
 }
 
-function resolveRound(code,bets) {
+function resolveRound(code,bets,roundState=null) {
   if(!Array.isArray(bets)||bets.length===0) throw new Error('Rodada sem apostas.');
   const byBetId={}; let result; let winnerIds=[];
   const win=(b)=>winnerIds.push(b.id);
@@ -284,8 +369,11 @@ function resolveRound(code,bets) {
     let best=null;
     for(const b of bets){const hand=Array.isArray(b.selecao?.hand)?b.selecao.hand:shuffle(deck()).slice(0,5),rank=pokerRank(hand);byBetId[b.id]={hand,rank};if(!best||comparePoker(hand,best.hand)>0){best={hand};winnerIds=[b.id];}else if(comparePoker(hand,best.hand)===0)winnerIds.push(b.id);}
     result={tipo:'poquer',porAposta:byBetId};
+  } else if(code==='sinuca') {
+    if(!roundState||roundState.status!=='finished')throw new Error('A partida de sinuca ainda não terminou.');
+    result=roundState;winnerIds=roundState.winnerBetIds||[];
   } else throw new Error('Jogo sem motor de resultado: '+code);
   return {result,winnerIds,byBetId};
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,startBlackjackGame,blackjackAction,startPokerGame,drawPokerCards,resolveRound};
+module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,startBlackjackGame,blackjackAction,startPokerGame,drawPokerCards,startBilliardsGame,simulateBilliardsShot,resolveRound};
