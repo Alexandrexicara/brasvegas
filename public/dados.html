@@ -35,4 +35,4 @@ document.getElementById('lancar').onclick=async()=>{if(ocupado)return;const apos
 const nums=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];
 els.forEach((el,i)=>{el.style.transition='transform 1.5s cubic-bezier(.12,.72,.16,1)';el.style.transform='rotateX('+(720+Math.floor(Math.random()*3)*360+orient[nums[i]][0])+'deg) rotateY('+(720+Math.floor(Math.random()*3)*360+orient[nums[i]][1])+'deg) translateY(0)'});
 await new Promise(r=>setTimeout(r,1600));const soma=nums[0]+nums[1],ganhou=tipo==='maior'?soma>7:tipo==='menor'?soma<7:soma===7;const premio=ganhou?aposta*(tipo==='sete'?5:2):0;saldo+=premio;document.getElementById('saldo').textContent=fmt(saldo);res.style.color=ganhou?'#aaffbd':'#ffd18a';res.textContent='🎲 '+nums[0]+' + '+nums[1]+' = '+soma+'. '+(ganhou?'VOCÊ GANHOU R$ '+fmt(premio):'Não foi desta vez.');hist.unshift(soma);hist=hist.slice(0,8);document.getElementById('historico').textContent='Últimas somas: '+hist.join(' • ');ocupado=false;btn.disabled=false};
-</script></body></html>
+</script><script src="js/brasvegas-audio.js"></script></body></html>
