@@ -321,12 +321,20 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
     const rodada = await client.query("SELECT r.*,j.codigo FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.id=$1 FOR UPDATE", [req.params.id]);
     if (!rodada.rows[0] || rodada.rows[0].status !== 'aberta') throw new Error('Rodada encerrada. Atualize o jogo.');
     if (!gameEngine.validateBetSelection(rodada.rows[0].codigo, selecao)) throw new Error('Seleção inválida para as regras deste jogo.');
-    const wallet = await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE', [req.usuarioId]);
-    if (!wallet.rows[0] || Number(wallet.rows[0].saldo_disponivel) < valor) throw new Error('Saldo insuficiente.');
-    const taxa = Math.round(valor * TAXA_PLATAFORMA) / 100;
-    const premio = Math.round((valor - taxa) * 100) / 100;
-    const antes = Number(wallet.rows[0].saldo_disponivel), reservado = Number(wallet.rows[0].saldo_reservado);
-    await client.query('UPDATE carteiras SET saldo_disponivel=saldo_disponivel-$1,saldo_reservado=saldo_reservado+$1,updated_at=NOW() WHERE id=$2', [valor,wallet.rows[0].id]);
+    const modo=rodada.rows[0].modo||'treino';
+    if(modo==='real'&&!APOSTAS_REAIS_HABILITADAS)throw new Error('Apostas reais estão bloqueadas.');
+    const wallet=await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[req.usuarioId]);
+    if(!wallet.rows[0])throw new Error('Carteira não encontrada.');
+    const taxa=Math.round(valor*TAXA_PLATAFORMA)/100;
+    const premio=Math.round((valor-taxa)*100)/100;
+    const antes=Number(wallet.rows[0].saldo_disponivel),reservado=Number(wallet.rows[0].saldo_reservado),treinoAntes=Number(wallet.rows[0].saldo_treino);
+    if(modo==='real'){
+      if(antes<valor)throw new Error('Saldo real insuficiente.');
+      await client.query('UPDATE carteiras SET saldo_disponivel=saldo_disponivel-$1,saldo_reservado=saldo_reservado+$1,updated_at=NOW() WHERE id=$2',[valor,wallet.rows[0].id]);
+    }else{
+      if(treinoAntes<valor)throw new Error('Saldo de treino insuficiente. Recarregue sua carteira de demonstração.');
+      await client.query('UPDATE carteiras SET saldo_treino=saldo_treino-$1,updated_at=NOW() WHERE id=$2',[valor,wallet.rows[0].id]);
+    }
     const bet = await client.query(
       "INSERT INTO apostas(rodada_id,usuario_id,selecao,valor,taxa_plataforma,valor_para_premio,status) VALUES($1,$2,$3,$4,$5,$6,'reservada') RETURNING id",
       [req.params.id,req.usuarioId,selecao,valor,taxa,premio]
@@ -357,20 +365,21 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
     }
     if(gameState){selecao={...selecao,...gameState};await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[selecao,bet.rows[0].id]);}
     await client.query('UPDATE rodadas SET total_apostado=total_apostado+$1,taxa_total=taxa_total+$2,premio_disponivel=premio_disponivel+$3 WHERE id=$4', [valor,taxa,premio,req.params.id]);
-    await client.query(
-      "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_reserva',$3,$4,$5,$6,$7,'aposta',$8,$9,'Reserva de aposta; comissão de 10% contabilizada na rodada')",
-      [wallet.rows[0].id,req.usuarioId,valor,antes,antes-valor,reservado,reservado+valor,bet.rows[0].id, 'bet:'+bet.rows[0].id]
-    );
-    await client.query('INSERT INTO comissoes_plataforma(rodada_id,aposta_id,valor,percentual) VALUES($1,$2,$3,10)', [req.params.id,bet.rows[0].id,taxa]);
-    const contaAntes = await client.query('SELECT saldo_comissoes FROM carteira_plataforma WHERE id=1 FOR UPDATE');
-    const saldoComissaoAntes = Number(contaAntes.rows[0]?.saldo_comissoes || 0);
-    const contaDepois = await client.query('UPDATE carteira_plataforma SET saldo_comissoes=saldo_comissoes+$1,atualizado_em=NOW() WHERE id=1 RETURNING saldo_comissoes', [taxa]);
-    await client.query(
-      "INSERT INTO movimentos_plataforma(tipo,aposta_id,valor,saldo_antes,saldo_depois,descricao) VALUES('comissao_aposta',$1,$2,$3,$4,'Comissão de 10% da aposta')",
-      [bet.rows[0].id,taxa,saldoComissaoAntes,Number(contaDepois.rows[0].saldo_comissoes)]
-    );
+    if(modo==='real'){
+      await client.query(
+        "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_reserva',$3,$4,$5,$6,$7,'aposta',$8,$9,'Reserva de aposta real; comissão de 10%')",
+        [wallet.rows[0].id,req.usuarioId,valor,antes,antes-valor,reservado,reservado+valor,bet.rows[0].id,'bet:'+bet.rows[0].id]
+      );
+      await client.query('INSERT INTO comissoes_plataforma(rodada_id,aposta_id,valor,percentual) VALUES($1,$2,$3,10)',[req.params.id,bet.rows[0].id,taxa]);
+      const contaAntes=await client.query('SELECT saldo_comissoes FROM carteira_plataforma WHERE id=1 FOR UPDATE');
+      const saldoComissaoAntes=Number(contaAntes.rows[0]?.saldo_comissoes||0);
+      const contaDepois=await client.query('UPDATE carteira_plataforma SET saldo_comissoes=saldo_comissoes+$1,atualizado_em=NOW() WHERE id=1 RETURNING saldo_comissoes',[taxa]);
+      await client.query("INSERT INTO movimentos_plataforma(tipo,aposta_id,valor,saldo_antes,saldo_depois,descricao) VALUES('comissao_aposta',$1,$2,$3,$4,'Comissão de 10% da aposta real')",[bet.rows[0].id,taxa,saldoComissaoAntes,Number(contaDepois.rows[0].saldo_comissoes)]);
+    }else{
+      await client.query("INSERT INTO lancamentos_treino(usuario_id,tipo,valor,saldo_antes,saldo_depois,referencia_id,chave_idempotencia,descricao) VALUES($1,'aposta',$2,$3,$4,$5,$6,'Aposta com fichas virtuais de treino')",[req.usuarioId,valor,treinoAntes,treinoAntes-valor,bet.rows[0].id,'treino:bet:'+bet.rows[0].id]);
+    }
     await client.query('COMMIT');
-    res.status(201).json({ sucesso:true, apostaId:bet.rows[0].id, valor, taxaPercentual:10, valorReservadoParaPremio:premio, gameState:gameState?selecaoPublica(selecao):null, mensagem:'Aposta registrada na rodada compartilhada.' });
+    res.status(201).json({sucesso:true,apostaId:bet.rows[0].id,valor,taxaPercentual:10,valorReservadoParaPremio:premio,modoJogo:modo,saldoTreino:modo==='treino'?treinoAntes-valor:null,gameState:gameState?selecaoPublica(selecao):null,mensagem:modo==='treino'?'Aposta registrada com fichas de treino.':'Aposta registrada na rodada compartilhada.'});
   } catch (e) {
     await client.query('ROLLBACK');
     res.status(400).json({ erro:e.message || 'Não foi possível registrar a aposta.' });
