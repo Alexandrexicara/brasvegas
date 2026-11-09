@@ -46,4 +46,4 @@ function avaliar(m){const v=m.map(x=>ordem[x.v]).sort((a,b)=>a-b);const naipe=m.
 btnNova.addEventListener('click',()=>{const val=parseFloat(a.value);if(!Number.isFinite(val)||val<=0||val>saldo){res.textContent='❌ Aposta inválida!';res.style.color='#f44';return;}apostaAtual=val;saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');embaralhar();distribuir();btnNova.disabled=true;btnTrocar.disabled=false;});
 btnTrocar.addEventListener('click',()=>{if(fim||mao.length===0)return;const sel=[...maoEl.children].map((el,i)=>({el,i,sel:el.classList.contains('selecionada')}));const val=apostaAtual;let trocadas=0;sel.forEach(x=>{if(x.sel){mao[x.i]=bar.pop();trocadas++;}});maoEl.innerHTML='';mao.forEach(c=>maoEl.appendChild(elCarta(c)));fim=true;btnNova.disabled=false;btnTrocar.disabled=true;const[texto,mult]=avaliar(mao);res.textContent=texto+(mult>0?` — x${mult}`:'');res.style.color=mult>0?'#39ff14':'#aaa';if(mult>0){saldo+=val*mult;s.textContent=saldo.toFixed(2).replace('.',',');}});
 embaralhar();distribuir();btnTrocar.disabled=true;
-</script></body></html>
+</script><script src="js/brasvegas-audio.js"></script></body></html>
