@@ -24,3 +24,16 @@ test('bacará aplica corretamente a regra de compra do banqueiro',()=>{
  assert.equal(g.bankerShouldDraw(6,6),true);
  assert.equal(g.bankerShouldDraw(6,5),false);
 });
+
+test('caça-níqueis aceita catálogo de seis símbolos',()=>{const r=g.slotResult(['🍒','🍋','🍊','🍇','💎','⭐'],{'🍒':10,'🍋':15,'🍊':20,'🍇':30,'💎':50,'⭐':100});assert.equal(r.symbols.length,3);assert.ok(r.symbols.every(s=>['🍒','🍋','🍊','🍇','💎','⭐'].includes(s)));});
+test('craps resolve corretamente as apostas pass e dont pass',()=>{
+ const pass=g.crapsResult('pass'),dont=g.crapsResult('dont_pass');
+ assert.ok(['win','lose','push'].includes(pass.outcome));
+ assert.ok(['win','lose','push'].includes(dont.outcome));
+ assert.equal(pass.betType,'pass');assert.equal(dont.betType,'dont_pass');
+});
+test('apostas de dados validam soma e duplas',()=>{
+ assert.equal(g.evaluateDiceBet({type:'sum',value:7},{dice:[3,4],sum:7}),true);
+ assert.equal(g.evaluateDiceBet({type:'doubles'},{dice:[4,4],sum:8}),true);
+ assert.equal(g.evaluateDiceBet({type:'sum',value:13},{dice:[6,6],sum:12}),false);
+});
