@@ -12,7 +12,7 @@ function salvarSessao(t, u) {
 
 function atualizarInterface() {
   const saldoEl = document.getElementById('mostrar-saldo');
-  if (saldoEl && usuario) saldoEl.textContent = Number(usuario.saldo||0).toLocaleString('pt-BR', {minimumFractionDigits:2});
+  if(saldoEl&&usuario){const saldo=usuario.modoJogo==='treino'?usuario.saldoTreino:usuario.saldo;saldoEl.textContent=Number(saldo||0).toLocaleString('pt-BR',{minimumFractionDigits:2});}
 }
 
 async function fazerLogin() {
@@ -51,7 +51,7 @@ async function carregarSaldo() {
   if (!token) return;
   const res = await fetch(`${API_BASE}/usuario`, { headers: { 'Authorization': 'Bearer ' + token } });
   const d = await res.json();
-  if (typeof d.saldo === 'number' && usuario) { usuario.saldo = d.saldo; localStorage.setItem('brasvegas-user', JSON.stringify(usuario)); }
+  if(usuario){if(typeof d.saldo==='number')usuario.saldo=d.saldo;if(typeof d.saldoTreino==='number')usuario.saldoTreino=d.saldoTreino;if(d.modoJogo)usuario.modoJogo=d.modoJogo;localStorage.setItem('brasvegas-user',JSON.stringify(usuario));}
   atualizarInterface();
 }
 
