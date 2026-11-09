@@ -82,7 +82,7 @@
   try{
    const current=await api('/jogos/sinuca/rodada-atual');roundId=current.rodada.id;
    state=await api('/sinuca/'+roundId+'/estado');myBetId=state.myBetId||null;
-   if(myBetId){joinBtn.disabled=true;format.disabled=true;amount.disabled=true;describe();render();refresh();}
+   if(myBetId){if(current.modoJogo==='treino')message.textContent='MODO TREINO · fichas virtuais sem valor monetário. ';joinBtn.disabled=true;format.disabled=true;amount.disabled=true;describe();render();refresh();}
    else{describe();render();}
   }catch(e){message.textContent=e.message;}
  }
@@ -93,7 +93,7 @@
   try{
    const current=await api('/jogos/sinuca/rodada-atual');roundId=current.rodada.id;
    const bet=await api('/rodadas/'+roundId+'/apostas',{method:'POST',body:JSON.stringify({valor:Number(amount.value),selecao:{type:'join',format:Number(format.value)}})});
-   myBetId=bet.apostaId;state=bet.gameState;format.disabled=true;amount.disabled=true;
+   myBetId=bet.apostaId;state=bet.gameState;if(bet.modoJogo==='treino')message.textContent='MODO TREINO · fichas virtuais sem valor monetário. ';format.disabled=true;amount.disabled=true;
    describe();render();refresh();
   }catch(e){message.textContent=e.message;joinBtn.disabled=false;}
   finally{joining=false;}
