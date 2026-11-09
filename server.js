@@ -149,7 +149,7 @@ app.get('/api/health', async (_req, res) => {
 });
 
 app.get('/api/configuracao', (_req, res) => {
-  res.json({ taxaPlataforma: TAXA_PLATAFORMA, jogos: ['roleta','blackjack','bacara','caca-niqueis','craps','dados','frutas','parede-sorte','poquer'], apostasReaisHabilitadas: APOSTAS_REAIS_HABILITADAS });
+  res.json({ taxaPlataforma: TAXA_PLATAFORMA, jogos: ['roleta','blackjack','bacara','caca-niqueis','craps','dados','frutas','parede-sorte','poquer','sinuca'], apostasReaisHabilitadas: APOSTAS_REAIS_HABILITADAS });
 });
 
 app.post('/api/cadastro', async (req, res) => {
