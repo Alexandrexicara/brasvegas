@@ -41,17 +41,40 @@ h1{text-align:center;font-size:32px;color:var(--dourado);margin-bottom:20px;}
 <div class="res" id="res"></div>
 </div>
 <script>
-let saldo=1000,alvo='jogador';
+let saldo=1000,alvo='jogador',ocupado=false;
 const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
 const jogCartas=document.getElementById('jogCartas'),banCartas=document.getElementById('banCartas');
 const jogPts=document.getElementById('jogPts'),banPts=document.getElementById('banPts'),res=document.getElementById('res');
-const apJogador=document.getElementById('apJogador'),apBanco=document.getElementById('apBanco'),apEmpate=document.getElementById('apEmpate');
+const aps=[document.getElementById('apJogador'),document.getElementById('apBanco'),document.getElementById('apEmpate')];
 const naipes=['♠','♥','♦','♣'],vals=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-[apJogador,apBanco,apEmpate].forEach((ap,i)=>{ap.addEventListener('click',()=>{[apJogador,apBanco,apEmpate].forEach(x=>x.classList.remove('ativa'));ap.classList.add('ativa');alvo=['jogador','banco','empate'][i];});});
-function valor(c){if(c.v==='A')return 1;if(['J','Q','K','10'].includes(c.v))return 0;return parseInt(c.v);}
-function elCarta(c){const d=document.createElement('div');d.className='carta'+(c.n==='♥'||c.n==='♦'?' vm':'');d.innerHTML=`<div>${c.v}${c.n}</div><div style="font-size:24px;text-align:center">${c.n}</div>`;return d;}
-function soma(mao){let t=0;for(let c of mao)t+=valor(c);return t%10;}
-btn.addEventListener('click',async()=>{const val=parseFloat(a.value);if(val<=0||val>saldo){res.textContent='❌ Aposta inválida!';res.style.color='#f44';return;}btn.disabled=true;saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');jogCartas.innerHTML='';banCartas.innerHTML='';res.textContent='';const bar=[];for(let n of naipes)for(let v of vals)bar.push({n,v});for(let i=bar.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bar[i],bar[j]]=[bar[j],bar[i]];}const jog=[bar.pop(),bar.pop()],ban=[bar.pop(),bar.pop()];for(let i=0;i<2;i++){jogCartas.appendChild(elCarta(jog[i]));await new Promise(r=>setTimeout(r,260));banCartas.appendChild(elCarta(ban[i]));await new Promise(r=>setTimeout(r,260));}let pJ=soma(jog),pB=soma(ban),terceira=null,natural=pJ>=8||pB>=8;if(!natural&&pJ<=5){terceira=bar.pop();jog.push(terceira);jogCartas.appendChild(elCarta(terceira));pJ=soma(jog);await new Promise(r=>setTimeout(r,300));}let compraBanco=false;if(!natural&&!terceira)compraBanco=pB<=5;else if(!natural){const v3=valor(terceira);compraBanco=pB<=2||(pB===3&&v3!==8)||(pB===4&&v3>=2&&v3<=7)||(pB===5&&v3>=4&&v3<=7)||(pB===6&&(v3===6||v3===7));}if(compraBanco){ban.push(bar.pop());banCartas.appendChild(elCarta(ban[2]));pB=soma(ban);await new Promise(r=>setTimeout(r,300));}jogPts.textContent=pJ;banPts.textContent=pB;if(pJ>pB){if(alvo==='jogador'){saldo+=val*2;res.textContent='✅ JOGADOR GANHOU! +R
+function atualizar(){s.textContent=saldo.toFixed(2).replace('.',',')}
+function valor(c){return c.v==='A'?1:['10','J','Q','K'].includes(c.v)?0:Number(c.v)}
+function soma(mao){return mao.reduce((t,c)=>t+valor(c),0)%10}
+function embaralhar(){const bar=[];for(const n of naipes)for(const v of vals)bar.push({n,v});for(let i=bar.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bar[i],bar[j]]=[bar[j],bar[i]]}return bar}
+function carta(c){const d=document.createElement('div');d.className='carta'+(['♥','♦'].includes(c.n)?' vm':'');const topo=document.createElement('div');topo.textContent=c.v+c.n;const centro=document.createElement('div');centro.style.cssText='font-size:24px;text-align:center';centro.textContent=c.n;d.append(topo,centro);return d}
+function comprarBanca(total,terceira){if(terceira===null)return total<=5;if(total<=2)return true;if(total===3)return terceira!==8;if(total===4)return terceira>=2&&terceira<=7;if(total===5)return terceira>=4&&terceira<=7;if(total===6)return terceira===6||terceira===7;return false}
+aps.forEach((el,i)=>el.addEventListener('click',()=>{if(ocupado)return;aps.forEach(x=>x.classList.remove('ativa'));el.classList.add('ativa');alvo=['jogador','banco','empate'][i]}));
+btn.addEventListener('click',async()=>{
+ if(ocupado)return;const aposta=Number(a.value);
+ if(!Number.isFinite(aposta)||aposta<=0||aposta>saldo){res.textContent='Aposta inválida ou saldo insuficiente.';res.style.color='#f44';return}
+ ocupado=true;btn.disabled=true;saldo-=aposta;atualizar();jogCartas.replaceChildren();banCartas.replaceChildren();res.textContent='Distribuindo...';
+ try{
+  const bar=embaralhar(),j=[bar.pop(),bar.pop()],b=[bar.pop(),bar.pop()];
+  for(let i=0;i<2;i++){jogCartas.appendChild(carta(j[i]));await new Promise(r=>setTimeout(r,240));banCartas.appendChild(carta(b[i]));await new Promise(r=>setTimeout(r,240))}
+  let pj=soma(j),pb=soma(b),terceira=null;const natural=pj>=8||pb>=8;
+  if(!natural&&pj<=5){terceira=bar.pop();j.push(terceira);jogCartas.appendChild(carta(terceira));await new Promise(r=>setTimeout(r,280))}
+  if(!natural&&comprarBanca(pb,terceira===null?null:valor(terceira))){b.push(bar.pop());banCartas.appendChild(carta(b[2]));await new Promise(r=>setTimeout(r,280))}
+  pj=soma(j);pb=soma(b);jogPts.textContent=pj;banPts.textContent=pb;
+  const vencedor=pj>pb?'jogador':pb>pj?'banco':'empate';let mensagem='';
+  if(vencedor==='empate'){saldo+=aposta;mensagem='EMPATE — aposta devolvida.'}
+  else if(vencedor===alvo){const lucro=aposta*(alvo==='banco'?.95:alvo==='empate'?8:1);saldo+=aposta+lucro;mensagem='VOCÊ GANHOU! '+vencedor.toUpperCase()+' · lucro R$ '+lucro.toFixed(2).replace('.',',')}
+  else mensagem='Vencedor: '+vencedor.toUpperCase()+'. Você não pontuou nesta mão.';
+  res.textContent=mensagem;res.style.color=vencedor===alvo?'#39ff14':vencedor==='empate'?'#ffd700':'#ff7777';atualizar();
+  window.BrasVegasAudio?.play(vencedor===alvo?'win':'lose');
+ }catch(e){saldo+=aposta;atualizar();res.textContent='Falha na distribuição. A aposta foi devolvida.';res.style.color='#f44'}
+ finally{ocupado=false;btn.disabled=false}
+});
+atualizar();
 </script><script src="js/brasvegas-audio.js"></script></body></html>
 +(val*1).toFixed(2);res.style.color='#39ff14';}else{res.textContent='❌ Ganhou Jogador!';res.style.color='#ff7777';}}else if(pB>pJ){if(alvo==='banco'){saldo+=val*1.95;res.textContent='✅ BANCO GANHOU! +R
 </script></body></html>
