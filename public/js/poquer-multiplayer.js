@@ -24,6 +24,7 @@
  async function refreshBalance(){
   const user=await api('/usuario');
   balance.textContent=Number(user.modoJogo==='treino'?user.saldoTreino:user.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(user.modoJogo==='treino'&&!document.getElementById('modo-treino-label')){const label=document.createElement('small');label.id='modo-treino-label';label.textContent=' · FICHAS DE TREINO';balance.insertAdjacentElement('afterend',label);}
  }
  async function newHand(){
   if(busy)return;
