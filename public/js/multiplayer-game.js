@@ -38,7 +38,7 @@
   if(!token)return;
   const user=await api('/usuario');
   if(balance)balance.textContent=Number(user.modoJogo==='treino'?user.saldoTreino:user.saldo).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  if(user.modoJogo==='treino'&&!document.getElementById('modo-treino-label')){const label=document.createElement('small');label.id='modo-treino-label';label.textContent=' · FICHAS DE TREINO';balance.insertAdjacentElement('afterend',label);}
+  const parent=balance.parentElement;const labelEl=parent.querySelector('label');if(labelEl)labelEl.textContent=user.modoJogo==='treino'?'FICHAS DE TREINO':'SALDO REAL';else if(parent.firstChild&&parent.firstChild.nodeType===3)parent.firstChild.textContent=user.modoJogo==='treino'?'🎟️ Fichas de treino: ':'💰 Saldo real: R$ ';if(user.modoJogo==='treino'&&!document.getElementById('modo-treino-label')){const label=document.createElement('small');label.id='modo-treino-label';label.textContent=' · FICHAS DE TREINO';balance.insertAdjacentElement('afterend',label);}
  };
  async function jogar(){
   if(busy)return;
