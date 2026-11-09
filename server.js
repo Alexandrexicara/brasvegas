@@ -325,7 +325,8 @@ app.post('/api/admin/rodadas/:id/encerrar', async (req, res) => {
     const r = await client.query("SELECT * FROM rodadas WHERE id=$1 FOR UPDATE", [req.params.id]);
     if (!r.rows[0] || r.rows[0].status !== 'aberta') throw new Error('Rodada não está aberta.');
     const apostas = await client.query("SELECT * FROM apostas WHERE rodada_id=$1 AND status='reservada' FOR UPDATE", [req.params.id]);
-    const resultadoCanonico = canonicalJson(resultado);\n    const vencedoras = apostas.rows.filter(a => canonicalJson(a.selecao) === resultadoCanonico);
+    const resultadoCanonico = canonicalJson(resultado);
+    const vencedoras = apostas.rows.filter(a => canonicalJson(a.selecao) === resultadoCanonico);
     const totalVencedor = vencedoras.reduce((s,a)=>s+Number(a.valor_para_premio),0);
     const premioTotal = Number(r.rows[0].premio_disponivel);
     if (totalVencedor > 0) {
