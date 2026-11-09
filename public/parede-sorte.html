@@ -51,7 +51,7 @@ h1{text-align:center;font-size:32px;color:var(--l);margin-bottom:20px;}
 <div class="res" id="res"></div>
 </div>
 <script>
-let saldo=1000;
+let saldo=1000,ocupado=false;
 const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
 const moeda=document.getElementById('moeda'),res=document.getElementById('res');
 const ps=document.querySelectorAll('.p');
@@ -69,28 +69,38 @@ for(let l=0;l<9;l++){
 btn.addEventListener('click',jogar);
 
 function jogar(){
-  const val=parseFloat(a.value);
-  if(val>saldo){res.textContent='❌ Sem saldo!';res.style.color='#f44';return;}
-  saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');
-  moeda.style.display='block';moeda.style.left='200px';moeda.style.top='0px';
-  res.textContent='';
-  let y=0,x=200;
-  const id=setInterval(()=>{
-    y+=12;
-    x+=Math.random()>.5?12:-12;
-    x=Math.max(10,Math.min(390,x));
-    moeda.style.top=y+'px';moeda.style.left=x+'px';
-    if(y>=420){
-      clearInterval(id);
-      const idx=Math.floor((x-10)/50);
-      const p=ps[Math.max(0,Math.min(7,idx))];
-      const m=parseFloat(p.dataset.m);
-      if(m>1)saldo+=val*m;
-      s.textContent=saldo.toFixed(2).replace('.',',');
-      res.textContent=m===500?`🏆 JACKPOT R$${(val*m).toFixed(2)}!`:`✅ x${m} — R$${(val*m).toFixed(2)}`;
-      res.style.color=m>=50?'#39ff14':'#ffd700';
-      moeda.style.display='none';
+  if(ocupado)return;
+  const val=Number(a.value),jogo=document.querySelector('.jogo');
+  if(!Number.isFinite(val)||val<=0||val>saldo){res.textContent='❌ Aposta inválida ou saldo insuficiente!';res.style.color='#f44';return;}
+  ocupado=true;btn.disabled=true;saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');
+  res.textContent='A moeda está descendo pela parede...';res.style.color='#fff';
+  const largura=jogo.clientWidth,raio=12,alturaFinal=410;
+  let x=largura/2,y=4,vx=(Math.random()-.5)*1.2,vy=1.2;
+  moeda.style.display='block';moeda.style.left=(x-raio)+'px';moeda.style.top=(y-raio)+'px';
+  const pinosFisicos=[];
+  for(let l=0;l<9;l++){const des=l%2?35:0;for(let col=0;col<11;col++)pinosFisicos.push({x:col*38+des+5,y:75+l*45,r:5});}
+  function frame(){
+    vy=Math.min(vy+.22,6);x+=vx;y+=vy;
+    if(x<raio){x=raio;vx=Math.abs(vx)*.72;}
+    if(x>largura-raio){x=largura-raio;vx=-Math.abs(vx)*.72;}
+    for(const p of pinosFisicos){
+      const dx=x-p.x,dy=y-p.y,dist=Math.hypot(dx,dy),min=raio+p.r;
+      if(dist>0&&dist<min){
+        const nx=dx/dist,ny=dy/dist;x=p.x+nx*(min+.2);y=p.y+ny*(min+.2);
+        const vn=vx*nx+vy*ny;
+        if(vn<0){vx=(vx-2*vn*nx)*.78;vy=(vy-2*vn*ny)*.72;vx+=((Math.random()-.5)*.32);}
+      }
     }
-  },50);
+    moeda.style.left=(x-raio)+'px';moeda.style.top=(y-raio)+'px';
+    if(y<alturaFinal){requestAnimationFrame(frame);return;}
+    const idx=Math.max(0,Math.min(7,Math.floor(x/(largura/8))));
+    const premio=ps[idx],mult=Number(premio.dataset.m),ganho=val*mult;
+    if(mult>1)saldo+=ganho;
+    s.textContent=saldo.toFixed(2).replace('.',',');
+    res.textContent=mult===500?'🏆 JACKPOT R$'+ganho.toFixed(2)+'!':'Resultado x'+mult+' — R$'+ganho.toFixed(2);
+    res.style.color=mult>=50?'#39ff14':'#ffd700';
+    moeda.style.display='none';ocupado=false;btn.disabled=false;
+  }
+  requestAnimationFrame(frame);
 }
 </script></body></html>
