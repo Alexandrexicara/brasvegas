@@ -167,7 +167,8 @@ function fecharModalDeposito() { document.getElementById('modal-deposito')?.clas
 function abrirModalSaque() { document.getElementById('modal-saque')?.classList.add('aberto'); }
 function fecharModalSaque() { document.getElementById('modal-saque')?.classList.remove('aberto'); }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded',()=>{
   atualizarInterface();
-  if (token && window.location.pathname.includes('index.html')) window.location.href='salao.html';
+  if(token)carregarSaldo().catch(()=>{});
+  if(token&&window.location.pathname.includes('index.html'))window.location.href='salao.html';
 });
