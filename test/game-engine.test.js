@@ -116,3 +116,9 @@ test('sinuca rejeita tacada fora da vez e seleções inválidas',()=>{
  assert.equal(g.validateBetSelection('sinuca',{type:'join',format:2}),true);
  assert.equal(g.validateBetSelection('sinuca',{type:'join',format:3}),false);
 });
+
+test('liquidação da sinuca premia somente os jogadores da dupla vencedora',()=>{
+ const state={status:'finished',winnerTeam:1,winnerBetIds:['b','d']};
+ const out=g.resolveRound('sinuca',[{id:'a'},{id:'b'},{id:'c'},{id:'d'}],state);
+ assert.deepEqual(out.winnerIds,['b','d']);
+});
