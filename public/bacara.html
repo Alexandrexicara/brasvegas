@@ -40,16 +40,4 @@ h1{text-align:center;font-size:32px;color:var(--dourado);margin-bottom:20px;}
 </div>
 <div class="res" id="res"></div>
 </div>
-<script>
-let saldo=1000,alvo='jogador';
-const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
-const jogCartas=document.getElementById('jogCartas'),banCartas=document.getElementById('banCartas');
-const jogPts=document.getElementById('jogPts'),banPts=document.getElementById('banPts'),res=document.getElementById('res');
-const apJogador=document.getElementById('apJogador'),apBanco=document.getElementById('apBanco'),apEmpate=document.getElementById('apEmpate');
-const naipes=['♠','♥','♦','♣'],vals=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-[apJogador,apBanco,apEmpate].forEach((ap,i)=>{ap.addEventListener('click',()=>{[apJogador,apBanco,apEmpate].forEach(x=>x.classList.remove('ativa'));ap.classList.add('ativa');alvo=['jogador','banco','empate'][i];});});
-function valor(c){if(c.v==='A')return 1;if(['J','Q','K','10'].includes(c.v))return 0;return parseInt(c.v);}
-function elCarta(c){const d=document.createElement('div');d.className='carta'+(c.n==='♥'||c.n==='♦'?' vm':'');d.innerHTML=`<div>${c.v}${c.n}</div><div style="font-size:24px;text-align:center">${c.n}</div>`;return d;}
-function soma(mao){let t=0;for(let c of mao)t+=valor(c);return t%10;}
-btn.addEventListener('click',()=>{const val=parseFloat(a.value);if(val<=0||val>saldo){res.textContent='❌ Aposta inválida!';res.style.color='#f44';return;}saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');jogCartas.innerHTML='';banCartas.innerHTML='';res.textContent='';const bar=[];for(let n of naipes)for(let v of vals)bar.push({n,v});for(let i=bar.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bar[i],bar[j]]=[bar[j],bar[i]];}const jog=[bar.pop(),bar.pop()],ban=[bar.pop(),bar.pop()];jog.forEach(c=>jogCartas.appendChild(elCarta(c)));ban.forEach(c=>banCartas.appendChild(elCarta(c)));let pJ=soma(jog),pB=soma(ban);if(pJ<=5){const c=bar.pop();jog.push(c);jogCartas.appendChild(elCarta(c));pJ=soma(jog);}if(pB<=5||(pB===6&&pJ>=6)||(pB===7&&pJ===7)){const c=bar.pop();ban.push(c);banCartas.appendChild(elCarta(c));pB=soma(ban);}jogPts.textContent=pJ;banPts.textContent=pB;if(pJ>pB){if(alvo==='jogador'){saldo+=val*2;res.textContent='✅ JOGADOR GANHOU! +R$'+(val*1).toFixed(2);res.style.color='#39ff14';}else res.textContent='❌ Ganhou Jogador!';}else if(pB>pJ){if(alvo==='banco'){saldo+=val*1.95;res.textContent='✅ BANCO GANHOU! +R$'+(val*0.95).toFixed(2);res.style.color='#39ff14';}else res.textContent='❌ Ganhou Banco!';}else{if(alvo==='empate'){saldo+=val*9;res.textContent='🤝 EMPATE! +R$'+(val*8).toFixed(2);res.style.color='#ffd700';}else{saldo+=val;res.textContent='🤝 EMPATE — Devolvido!';res.style.color='#ffd700';}}s.textContent=saldo.toFixed(2).replace('.',',');});
-</script></body></html>
+<script src="js/multiplayer-game.js"></script></body></html>
