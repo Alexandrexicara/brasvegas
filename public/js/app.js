@@ -236,7 +236,7 @@ async function confirmarDeposito() {
       body: JSON.stringify({ valor })
     });
     const d = await lerResposta(res);
-    mostrarAviso('Solicitação processada. Saldo informado: R$ ' + Number(d.saldoAtual).toFixed(2) + '.', 'sucesso');
+    mostrarAviso('Créditos de treinamento adicionados: R$ ' + Number(d.saldoAtual).toFixed(2) + '.', 'sucesso', 'Este saldo é apenas para testes e não tem valor financeiro.');
     fecharModalDeposito();
     carregarSaldo();
   } catch (erro) {
