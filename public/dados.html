@@ -1,97 +1,39 @@
-<!DOCTYPE html><html lang="pt-BR"><head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Dados Craps | BrasVegas</title>
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dados • BRASVEGAS</title>
 <style>
-:root{--v:#e50914;--p:#0a0a0a;--a:#0066ff;--l:#ff6a00;--g:#39ff14;--dourado:#d4af37;}
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
-body{background:linear-gradient(180deg,#001122,#000810);min-height:100vh;color:#fff;padding:20px;}
-h1{text-align:center;font-size:32px;color:var(--dourado);margin-bottom:20px;}
-.mesa{max-width:550px;margin:0 auto;background:linear-gradient(180deg,#004422,#002211);border-radius:20px;border:6px solid var(--dourado);padding:25px;}
-.dados{display:flex;justify-content:center;gap:25px;margin:20px 0;}
-.dado{width:80px;height:80px;background:#fff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#000;box-shadow:3px 5px 10px rgba(0,0,0,.4);}
-.dado.girando{animation:girar .15s infinite alternate;}
-@keyframes girar{0%{transform:rotate(-8deg) scale(1.05)}100%{transform:rotate(8deg) scale(0.95)}}
-.fase{text-align:center;font-size:20px;font-weight:bold;color:var(--g);margin-bottom:15px;}
-.apostas{display:flex;justify-content:center;gap:15px;margin-bottom:15px;flex-wrap:wrap;}
-.ap{padding:10px 15px;border-radius:6px;border:2px solid var(--dourado);background:rgba(0,0,0,.4);cursor:pointer;transition:.2s;}
-.ap.ativa{background:rgba(57,255,20,.2);border-color:var(--g);box-shadow:0 0 10px var(--g);}
-.ctrl{display:flex;justify-content:center;gap:10px;align-items:center;flex-wrap:wrap;margin-top:15px;}
-.ctrl input{padding:10px;font-size:18px;width:120px;border-radius:6px;border:2px solid var(--dourado);background:#111;color:#fff;text-align:center;}
-.ctrl button{padding:12px 25px;font-size:18px;font-weight:bold;border-radius:8px;border:none;background:linear-gradient(180deg,var(--l),#cc5500);color:#fff;cursor:pointer;box-shadow:0 0 12px var(--l);}
-.ctrl button:disabled{opacity:.4;cursor:not-allowed;}
-.saldo{text-align:center;font-size:22px;color:var(--g);font-weight:bold;margin-bottom:10px;}
-.res{text-align:center;font-size:24px;font-weight:bold;margin-top:15px;min-height:35px;}
-.info{margin-top:15px;text-align:center;font-size:13px;color:#aaa;}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#174b38,#06140f 65%,#020806);color:#fff;font-family:Segoe UI,Arial;padding:22px}
+header{text-align:center;margin:8px auto 24px}h1{color:#f2d27a;letter-spacing:2px;margin:0 0 8px}.sub{color:#b7c9bf}
+.mesa{max-width:760px;margin:auto;padding:26px;border:5px solid #b38a3d;border-radius:28px;background:radial-gradient(ellipse,#176044,#073323 70%);box-shadow:0 20px 55px #000b,inset 0 0 30px #0008}
+.saldo{text-align:center;color:#aaffbd;font-size:20px;font-weight:700;margin-bottom:20px}
+.area-dados{display:flex;justify-content:center;align-items:center;gap:clamp(30px,9vw,90px);padding:45px 10px 55px;perspective:900px}
+.dado{width:92px;height:92px;position:relative;transform-style:preserve-3d;transition:transform 1.45s cubic-bezier(.12,.72,.16,1)}
+.face{position:absolute;width:92px;height:92px;background:linear-gradient(145deg,#fff,#e6e6e6);border:1px solid #bbb;border-radius:17px;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:13px;gap:5px;box-shadow:inset 0 0 9px #bbb}
+.face.front{transform:translateZ(46px)}.face.back{transform:rotateY(180deg) translateZ(46px)}.face.right{transform:rotateY(90deg) translateZ(46px)}.face.left{transform:rotateY(-90deg) translateZ(46px)}.face.top{transform:rotateX(90deg) translateZ(46px)}.face.bottom{transform:rotateX(-90deg) translateZ(46px)}
+.pip{border-radius:50%;background:#171717;box-shadow:inset 1px 2px 2px #000;align-self:center;justify-self:center;width:14px;height:14px}.pip.off{opacity:0}
+.controles{display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap}.controles input{width:125px;padding:13px;background:#06140f;color:white;border:1px solid #d3ad55;border-radius:9px;font-size:18px;text-align:center}
+button{border:0;border-radius:9px;padding:13px 20px;font-weight:800;cursor:pointer}.opcao{background:#123e30;color:#fff;border:1px solid #a88743}.opcao.ativa{background:#d3ad55;color:#1b1609}.lancar{background:linear-gradient(#ffbd57,#d66b17);color:#211204;font-size:18px;min-width:160px;box-shadow:0 5px 0 #87400d}.lancar:disabled{opacity:.5}
+.resultado{text-align:center;min-height:62px;margin-top:22px;font-size:22px;font-weight:700}.historico{text-align:center;color:#d4c9a9;margin-top:15px;font-size:14px}
+@media(max-width:520px){.mesa{padding:18px 12px}.dado{transform:scale(.78);margin:-10px}.area-dados{gap:22px;padding:35px 0}.face{box-shadow:inset 0 0 7px #bbb}}
 </style></head><body>
-<h1>🎲 DADOS CRAPS</h1>
-<div class="saldo">💰 R$ <span id="s">1000,00</span></div>
-<div class="mesa">
-<div class="fase" id="fase">Jogada de Saída</div>
-<div class="dados">
-<div class="dado" id="d1">⚀</div>
-<div class="dado" id="d2">⚁</div>
-</div>
-<div class="apostas">
-<div class="ap ativa" id="apPassar">✅ Passar</div>
-<div class="ap" id="apNaoPassar">❌ Não Passar</div>
-</div>
-<div class="ctrl">
-<input type="number" id="a" value="20" min="1">
-<button id="btn">JOGAR!</button>
-</div>
-<div class="res" id="res"></div>
-<div class="info" id="info">Ponto: — | Tire 7 = perde</div>
-</div>
+<header><h1>🎲 MESA DE DADOS</h1><div class="sub">Dois dados • lançamento 3D • escolha sua previsão</div></header>
+<main class="mesa"><div class="saldo">SALDO DEMONSTRATIVO: R$ <span id="saldo">1.000,00</span></div>
+<div class="area-dados"><div class="dado" id="dado1"></div><div class="dado" id="dado2"></div></div>
+<div class="controles"><button class="opcao ativa" data-tipo="maior">Soma acima de 7</button><button class="opcao" data-tipo="menor">Soma abaixo de 7</button><button class="opcao" data-tipo="sete">Soma igual a 7</button></div>
+<div class="controles" style="margin-top:18px"><label>Aposta R$ <input id="aposta" type="number" min="1" step="1" value="10"></label><button class="lancar" id="lancar">LANÇAR DADOS</button></div>
+<div class="resultado" id="resultado" aria-live="polite">Faça sua previsão e lance os dados.</div><div class="historico" id="historico">Últimos resultados: —</div>
+</main>
 <script>
-let saldo=1000,ponto=null,girando=false;
-let tipo='passar';
-const s=document.getElementById('s'),a=document.getElementById('a'),btn=document.getElementById('btn');
-const d1=document.getElementById('d1'),d2=document.getElementById('d2');
-const fase=document.getElementById('fase'),res=document.getElementById('res'),info=document.getElementById('info');
-const apPassar=document.getElementById('apPassar'),apNaoPassar=document.getElementById('apNaoPassar');
-
-apPassar.addEventListener('click',()=>{tipo='passar';apPassar.classList.add('ativa');apNaoPassar.classList.remove('ativa');});
-apNaoPassar.addEventListener('click',()=>{tipo='naopassar';apNaoPassar.classList.add('ativa');apPassar.classList.remove('ativa');});
-
-function rolar(){return Math.floor(Math.random()*6)+1;}
-
-btn.addEventListener('click',async ()=>{
-  if(girando)return;
-  const val=parseFloat(a.value);
-  if(val<=0||val>saldo){res.textContent='❌ Aposta inválida!';res.style.color='#f44';return;}
-  girando=true;btn.disabled=true;res.textContent='';
-  saldo-=val;s.textContent=saldo.toFixed(2).replace('.',',');
-  d1.classList.add('girando');d2.classList.add('girando');
-  for(let i=0;i<15;i++){d1.textContent=rolar();d2.textContent=rolar();await new Promise(t=>setTimeout(t,60));}
-  d1.classList.remove('girando');d2.classList.remove('girando');
-  const v1=parseInt(d1.textContent),v2=parseInt(d2.textContent);
-  const soma=v1+v2;
-  let ganho=0,mensagem='';
-  if(!ponto){
-    if(tipo==='passar'){
-      if(soma===7||soma===11){ganho=val*2;mensagem='✅ GANHOU! +R$'+ganho.toFixed(2);}
-      else if(soma===2||soma===3||soma===12){mensagem='❌ PERDEU!';}
-      else{ponto=soma;mensagem='🎯 Ponto '+ponto+' estabelecido! Jogue de novo!';fase.textContent='Ponto: '+ponto;info.textContent='Tire '+ponto+' = ganha | Tire 7 = perde';}
-    }else{
-      if(soma===2||soma===3){ganho=val*2;mensagem='✅ GANHOU! +R$'+ganho.toFixed(2);}
-      else if(soma===7||soma===11){mensagem='❌ PERDEU!';}
-      else if(soma===12){ganho=val;mensagem='🤝 EMPATE — Devolvido!';}
-      else{ponto=soma;mensagem='🎯 Ponto '+ponto+' estabelecido!';fase.textContent='Ponto: '+ponto;info.textContent='Tire 7 = ganha | Tire '+ponto+' = perde';}
-    }
-  }else{
-    if(tipo==='passar'){
-      if(soma===ponto){ganho=val*2;mensagem='✅ REPETIU O PONTO! GANHOU! +R$'+ganho.toFixed(2);ponto=null;fase.textContent='Jogada de Saída';info.textContent='Ponto: —';}
-      else if(soma===7){mensagem='❌ SAIU 7! PERDEU!';ponto=null;fase.textContent='Jogada de Saída';info.textContent='Ponto: —';}
-    }else{
-      if(soma===7){ganho=val*2;mensagem='✅ SAIU 7! GANHOU! +R$'+ganho.toFixed(2);ponto=null;fase.textContent='Jogada de Saída';info.textContent='Ponto: —';}
-      else if(soma===ponto){mensagem='❌ REPETIU O PONTO! PERDEU!';ponto=null;fase.textContent='Jogada de Saída';info.textContent='Ponto: —';}
-    }
-  }
-  if(ganho>0){saldo+=ganho;res.style.color='#39ff14';}
-  else if(mensagem.includes('EMPATE')){res.style.color='#ffd700';}
-  else{res.style.color='#ff4444';}
-  res.textContent=mensagem;
-  s.textContent=saldo.toFixed(2).replace('.',',');
-  girando=false;btn.disabled=false;
-});
+const faces={1:[0,0,0,0,1,0,0,0,0],2:[1,0,0,0,0,0,0,0,1],3:[1,0,0,0,1,0,0,0,1],4:[1,0,1,0,0,0,1,0,1],5:[1,0,1,0,1,0,1,0,1],6:[1,0,1,1,0,1,1,0,1]};
+const classes=['front','back','right','left','top','bottom'];
+function montarDado(el){classes.forEach(c=>{const f=document.createElement('div');f.className='face '+c;for(let i=0;i<9;i++){const p=document.createElement('i');p.className='pip'+(faces[1][i]?'':' off');f.appendChild(p)}el.appendChild(f)});mostrarFace(el,1)}
+function mostrarFace(el,n){const f=el.querySelector('.front');[...f.children].forEach((p,i)=>p.classList.toggle('off',!faces[n][i]))}
+const orient={1:[0,0],2:[0,-90],3:[0,180],4:[0,90],5:[-90,0],6:[90,0]};
+const els=[document.getElementById('dado1'),document.getElementById('dado2')];els.forEach(montarDado);
+let saldo=1000,tipo='maior',ocupado=false,hist=[];
+document.querySelectorAll('.opcao').forEach(b=>b.onclick=()=>{if(ocupado)return;document.querySelectorAll('.opcao').forEach(x=>x.classList.toggle('ativa',x===b));tipo=b.dataset.tipo});
+const fmt=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+document.getElementById('lancar').onclick=async()=>{if(ocupado)return;const aposta=Number(document.getElementById('aposta').value),res=document.getElementById('resultado'),btn=document.getElementById('lancar');if(!Number.isFinite(aposta)||aposta<=0||aposta>saldo){res.textContent='Aposta inválida ou saldo insuficiente.';return}ocupado=true;btn.disabled=true;saldo-=aposta;document.getElementById('saldo').textContent=fmt(saldo);
+const nums=[1+Math.floor(Math.random()*6),1+Math.floor(Math.random()*6)];
+els.forEach((el,i)=>{el.style.transition='transform 1.5s cubic-bezier(.12,.72,.16,1)';el.style.transform='rotateX('+(720+Math.floor(Math.random()*3)*360+orient[nums[i]][0])+'deg) rotateY('+(720+Math.floor(Math.random()*3)*360+orient[nums[i]][1])+'deg) translateY(0)'});
+await new Promise(r=>setTimeout(r,1600));els.forEach((el,i)=>mostrarFace(el,nums[i]));const soma=nums[0]+nums[1],ganhou=tipo==='maior'?soma>7:tipo==='menor'?soma<7:soma===7;const premio=ganhou?aposta*(tipo==='sete'?5:2):0;saldo+=premio;document.getElementById('saldo').textContent=fmt(saldo);res.style.color=ganhou?'#aaffbd':'#ffd18a';res.textContent='🎲 '+nums[0]+' + '+nums[1]+' = '+soma+'. '+(ganhou?'VOCÊ GANHOU R$ '+fmt(premio):'Não foi desta vez.');hist.unshift(soma);hist=hist.slice(0,8);document.getElementById('historico').textContent='Últimas somas: '+hist.join(' • ');ocupado=false;btn.disabled=false};
 </script></body></html>
