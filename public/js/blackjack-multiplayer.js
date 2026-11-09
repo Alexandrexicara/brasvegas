@@ -48,7 +48,7 @@
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:{actions:[]}})});
    betId=bet.apostaId;roundId=current.rodada.id;
    showState(bet.gameState);
-   if(!finished){result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Sua mão foi distribuída pelo servidor. Escolha pedir ou parar.';}
+   if(!finished){result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Sua mão foi distribuída pelo servidor. Escolha pedir ou parar.';}else{await settle();}
    await refreshBalance();
    }catch(e){
    result.textContent=e.message;newBtn.disabled=false;
