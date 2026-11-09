@@ -349,6 +349,37 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
 });
 
 // Encerramento protegido: somente serviço administrativo com segredo configurado pode publicar resultado.
+app.post('/api/blackjack/:apostaId/acao',auth,async(req,res)=>{
+  const action=req.body?.acao;
+  if(!['hit','stand'].includes(action))return res.status(400).json({erro:'Ação inválida.'});
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const q=await client.query("SELECT a.id,a.selecao FROM apostas a JOIN rodadas r ON r.id=a.rodada_id JOIN jogos j ON j.id=r.jogo_id WHERE a.id=$1 AND a.usuario_id=$2 AND a.status='reservada' AND r.status='aberta' AND j.codigo='blackjack' FOR UPDATE OF a",[req.params.apostaId,req.usuarioId]);
+    if(!q.rows[0])throw new Error('Mão de blackjack não encontrada ou já encerrada.');
+    const state=gameEngine.blackjackAction(q.rows[0].selecao,action);
+    await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[{...q.rows[0].selecao,...state},req.params.apostaId]);
+    await client.query('COMMIT');
+    res.json({sucesso:true,gameState:selecaoPublica(state)});
+  }catch(e){await client.query('ROLLBACK');res.status(400).json({erro:e.message||'Não foi possível jogar a mão.'});}
+  finally{client.release();}
+});
+
+app.post('/api/poquer/:apostaId/trocar',auth,async(req,res)=>{
+  const indices=req.body?.indices;
+  const client=await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const q=await client.query("SELECT a.id,a.selecao FROM apostas a JOIN rodadas r ON r.id=a.rodada_id JOIN jogos j ON j.id=r.jogo_id WHERE a.id=$1 AND a.usuario_id=$2 AND a.status='reservada' AND r.status='aberta' AND j.codigo='poquer' FOR UPDATE OF a",[req.params.apostaId,req.usuarioId]);
+    if(!q.rows[0])throw new Error('Mão de pôquer não encontrada ou já encerrada.');
+    const state=gameEngine.drawPokerCards(q.rows[0].selecao,indices||[]);
+    await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[{...q.rows[0].selecao,...state},req.params.apostaId]);
+    await client.query('COMMIT');
+    res.json({sucesso:true,gameState:selecaoPublica(state)});
+  }catch(e){await client.query('ROLLBACK');res.status(400).json({erro:e.message||'Não foi possível trocar as cartas.'});}
+  finally{client.release();}
+});
+
 async function liquidarRodadaPorId(rodadaId) {
   const client=await pool.connect();
   try {
