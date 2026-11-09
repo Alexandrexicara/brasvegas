@@ -49,7 +49,14 @@
    showState(bet.gameState);
    if(!finished){result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Sua mão foi distribuída pelo servidor. Escolha pedir ou parar.';}
    await refreshBalance();
-  }catch(e){result.textContent=e.message;newBtn.disabled=false;}
+   }catch(e){
+   result.textContent=e.message;newBtn.disabled=false;
+   if(e.message.includes('Saldo de treino insuficiente')){
+    const refill=document.createElement('button');refill.textContent='RECARREGAR FICHAS DE TREINO';
+    refill.onclick=async()=>{try{await api('/treino/recarregar',{method:'POST',body:JSON.stringify({})});await refreshBalance();result.textContent='Fichas de treino recarregadas. Jogue novamente.';}catch(x){result.textContent=x.message;}};
+    result.appendChild(document.createElement('br'));result.appendChild(refill);
+   }
+  }
   finally{busy=false;}
  }
  async function action(acao){
