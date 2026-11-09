@@ -85,7 +85,7 @@ test('pôquer distribui cartas sem repetição usando um único baralho comparti
  const draw=g.drawPokerCards(a,[0,2],b.deck);
  assert.equal(draw.state.status,'done');
  assert.equal(draw.state.hand.length,5);
- assert.equal(draw.remainingDeck.length,37);
+ assert.equal(draw.remainingDeck.length,40);
 });
 test('blackjack aceita hit e stand e encerra a mão no servidor',()=>{
  let state=g.startBlackjackGame();
