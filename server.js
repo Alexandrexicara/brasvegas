@@ -690,7 +690,34 @@ app.get('/api/health',async(_req,res)=>{
 
 app.get('/', (_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 app.use((err,_req,res,_next)=>{ console.error(err); res.status(500).json({erro:'Erro interno.'}); });
-pool.query('SELECT 1').then(()=>console.log('PostgreSQL/Neon conectado')).catch(e=>console.error('Falha Neon:',e.message));
+async function inicializarPartidas() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS partidas (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      jogo_id UUID NOT NULL REFERENCES jogos(id),
+      modo TEXT NOT NULL CHECK (modo IN ('treino','real')),
+      numero BIGINT NOT NULL,
+      total_rodadas SMALLINT NOT NULL DEFAULT 5 CHECK (total_rodadas=5),
+      rodada_atual SMALLINT NOT NULL DEFAULT 1 CHECK (rodada_atual BETWEEN 1 AND 5),
+      status TEXT NOT NULL DEFAULT 'aberta' CHECK (status IN ('aberta','finalizada','cancelada')),
+      premio_total NUMERIC(16,2) NOT NULL DEFAULT 0 CHECK (premio_total>=0),
+      pontuacao_final JSONB NOT NULL DEFAULT '{}'::jsonb,
+      ganhadores_finais JSONB NOT NULL DEFAULT '{}'::jsonb,
+      criada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      encerrada_em TIMESTAMPTZ,
+      UNIQUE(jogo_id,modo,numero)
+    );
+    ALTER TABLE rodadas ADD COLUMN IF NOT EXISTS partida_id UUID REFERENCES partidas(id);
+    ALTER TABLE rodadas ADD COLUMN IF NOT EXISTS numero_na_partida SMALLINT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_rodadas_partida_numero
+      ON rodadas(partida_id,numero_na_partida) WHERE partida_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_partidas_jogo_status
+      ON partidas(jogo_id,modo,status);
+  `);
+  await pool.query('SELECT 1');
+  console.log('PostgreSQL/Neon conectado; partidas de cinco rodadas prontas.');
+}
+
 const DURACAO_RODADA_SEGUNDOS=Math.max(15,Number(process.env.DURACAO_RODADA_SEGUNDOS||30));
 setInterval(async()=>{
   try{
@@ -700,4 +727,4 @@ setInterval(async()=>{
     }
   }catch(e){console.error('Agendador de rodadas:',e.message);}
 },5000).unref();
-app.listen(PORT,()=>console.log('BrasVegas API iniciado na porta '+PORT));
+ inicializarPartidas().then(()=>app.listen(PORT,()=>console.log('BrasVegas API iniciado na porta '+PORT))).catch(e=>{console.error('Falha ao preparar banco:',e);process.exit(1);});
