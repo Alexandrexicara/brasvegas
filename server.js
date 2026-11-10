@@ -524,12 +524,13 @@ async function liquidarRodadaPorId(rodadaId) {
       "SELECT * FROM apostas WHERE rodada_id=$1 AND status='reservada' ORDER BY usuario_id,created_at,id FOR UPDATE",
       [rodadaId]
     );
-    if (!apostas.rowCount) { await client.query('ROLLBACK'); return {vazia:true}; }
-    if (rodada.codigo === 'sinuca' && rodada.resultado?.status !== 'finished') {
+    if (apostas.rowCount && rodada.codigo === 'sinuca' && rodada.resultado?.status !== 'finished') {
       await client.query('ROLLBACK'); return {aguardandoSinuca:true};
     }
 
-    const apuracao = gameEngine.resolveRound(rodada.codigo,apostas.rows,rodada.resultado);
+    const apuracao = apostas.rowCount
+      ? gameEngine.resolveRound(rodada.codigo,apostas.rows,rodada.resultado)
+      : {result:{semApostas:true},winnerIds:[],byBetId:{}};
     const pontosRodada = gameEngine.scoreRoundWinners(apostas.rows,apuracao.winnerIds);
     const numeroRodada = Number(rodada.numero_na_partida);
     const pontuacao = {...(rodada.pontuacao_final || {}),[String(numeroRodada)]:pontosRodada};
@@ -637,8 +638,8 @@ async function liquidarRodadaPorId(rodadaId) {
       [JSON.stringify(pontuacao),JSON.stringify(resultadoFinal),rodada.partida_id]
     );
     await client.query(
-      "UPDATE rodadas SET status='paga' WHERE partida_id=$1",
-      [rodada.partida_id]
+      "UPDATE rodadas SET status=$1 WHERE partida_id=$2",
+      [partidaResult.winnerIds.length?'paga':'encerrada',rodada.partida_id]
     );
     await client.query('COMMIT');
     return {
@@ -721,7 +722,7 @@ async function inicializarPartidas() {
 const DURACAO_RODADA_SEGUNDOS=Math.max(15,Number(process.env.DURACAO_RODADA_SEGUNDOS||30));
 setInterval(async()=>{
   try{
-    const expiradas=await pool.query("SELECT r.id FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.status='aberta' AND r.inicio_em < NOW()-($1 * INTERVAL '1 second') AND (j.codigo<>'sinuca' OR r.resultado->>'status'='finished') AND EXISTS(SELECT 1 FROM apostas a WHERE a.rodada_id=r.id AND a.status='reservada') ORDER BY r.inicio_em LIMIT 20",[DURACAO_RODADA_SEGUNDOS]);
+    const expiradas=await pool.query("SELECT r.id FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.status='aberta' AND r.inicio_em < NOW()-($1 * INTERVAL '1 second') AND (j.codigo<>'sinuca' OR r.resultado->>'status'='finished' OR NOT EXISTS(SELECT 1 FROM apostas sx WHERE sx.rodada_id=r.id AND sx.status='reservada')) ORDER BY r.inicio_em LIMIT 20",[DURACAO_RODADA_SEGUNDOS]);
     for(const rodada of expiradas.rows){
       try{await liquidarRodadaPorId(rodada.id);}catch(e){console.error('Liquidação automática:',rodada.id,e.message);}
     }
