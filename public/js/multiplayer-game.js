@@ -54,7 +54,7 @@
   if(gameCode==='bacara')return 'Jogador '+perBet.playerTotal+' × Banco '+perBet.bankerTotal+' — '+perBet.winner;
   if(gameCode==='craps'||gameCode==='dados')return 'Dados: '+perBet.rolls.map(x=>x.join(' + ')).join(' → ');
   if(gameCode==='caca-niqueis'||gameCode==='frutas')return perBet.symbols.join(' | ')+(perBet.multiplier>0?' — combinação de três iguais':' — sem combinação premiada');
-  if(gameCode==='parede-sorte')return 'Pontuação da queda: '+perBet.multiplier+' pontos. A maior pontuação da rodada vence o prêmio compartilhado.';
+  if(gameCode==='parede-sorte')return 'Pontuação da queda: '+perBet.multiplier+' pontos. A pontuação desta rodada conta para a partida de cinco rodadas.';
   return JSON.stringify(perBet);
  };
  async function carregarSaldo(){
@@ -72,18 +72,27 @@
   try{
    const current=await api('/jogos/'+code+'/rodada-atual');
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:selection()})});
-   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Aposta registrada na rodada '+current.rodada.numero+'. Taxa 10%; 90% vai para o prêmio compartilhado. Aguardando resultado...';
+   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Aposta registrada na rodada '+current.rodada.numero+'. Taxa 10%; 90% desta aposta entra no prêmio acumulado da partida de cinco rodadas. Aguardando a rodada...';
    let final=null;
-   for(let i=0;i<25;i++){
+   for(let i=0;i<100;i++){
     await new Promise(resolve=>setTimeout(resolve,2000));
     const state=await api('/rodadas/'+current.rodada.id);
-    if(state.status==='paga'||state.status==='encerrada'){final=state;break;}
+    if(state.matchFinal){final=state;break;}
+    if(state.status==='encerrada'||state.status==='paga'){final=state;break;}
    }
-   if(!final){result.textContent='Aposta confirmada. Resultado será atualizado quando a rodada encerrar.';return;}
+   if(!final){result.textContent='Aposta registrada. Aguardando o encerramento desta rodada. Você poderá jogar a próxima rodada da mesma partida.';return;}
    const detail=final.resultado?.byBetId?.[bet.apostaId]||final.resultado?.result?.porAposta?.[bet.apostaId]||final.resultado?.result;
    renderVisuals(code,detail);
-   const won=final.aposta?.status==='paga';
-   result.textContent=(current.modoJogo==='treino'?'MODO TREINO · ':'')+(won?'VOCÊ GANHOU · ':'VOCÊ NÃO GANHOU · ')+renderState(code,detail)+' · Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
+   if(final.matchFinal){
+    const won=!!final.partida?.usuarioGanhou;
+    const prize=Number(final.partida?.premioUsuario||0);
+    const tied=!!final.partida?.resultadoFinal?.tied;
+    result.textContent=(current.modoJogo==='treino'?'MODO TREINO · ':'')+
+      (won?(tied?'EMPATE NA PONTUAÇÃO FINAL · VOCÊ RECEBEU SUA PARTE · ':'VOCÊ FOI O MAIOR PONTUADOR E GANHOU · '):'PARTIDA ENCERRADA · VOCÊ NÃO FOI O MAIOR PONTUADOR · ')+
+      renderState(code,detail)+' · Prêmio recebido: '+(final.modo==='treino'?'fichas ':'R$ ')+prize.toFixed(2);
+   }else{
+    result.textContent='RODADA '+Number(final.partida?.numeroPartida||current.rodada.numero_na_partida||1)+'/5 CONCLUÍDA · Sua pontuação acumulada: '+Number(final.partida?.pontosUsuario||0)+' ponto(s). Clique em JOGAR para participar da próxima rodada. O prêmio continua acumulado e ainda não foi pago.';
+   }
    await carregarSaldo();
    }catch(error){
    result.textContent=error.message;
