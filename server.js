@@ -296,22 +296,37 @@ app.get('/api/jogos/:codigo/rodada-atual', auth, async (req, res) => {
     await client.query('BEGIN');
     const jogo = await client.query('SELECT id,codigo,nome FROM jogos WHERE codigo=$1 AND ativo=true FOR SHARE', [req.params.codigo]);
     if (!jogo.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ erro:'Jogo não encontrado.' }); }
-    const j=jogo.rows[0];
-    const modo=APOSTAS_REAIS_HABILITADAS?'real':'treino';
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['brasvegas-round:'+j.id+':'+modo]);
-    let rodada=await client.query("SELECT id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo FROM rodadas WHERE jogo_id=$1 AND modo=$2 AND status='aberta' ORDER BY numero DESC LIMIT 1",[j.id,modo]);
+    const j = jogo.rows[0];
+    const modo = APOSTAS_REAIS_HABILITADAS ? 'real' : 'treino';
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['brasvegas-match:'+j.id+':'+modo]);
+
+    let partida = await client.query("SELECT * FROM partidas WHERE jogo_id=$1 AND modo=$2 AND status='aberta' ORDER BY numero DESC LIMIT 1 FOR UPDATE", [j.id,modo]);
+    if (!partida.rows[0]) {
+      const next = await client.query('SELECT COALESCE(MAX(numero),0)+1 AS n FROM partidas WHERE jogo_id=$1 AND modo=$2', [j.id,modo]);
+      partida = await client.query("INSERT INTO partidas(jogo_id,modo,numero,total_rodadas,rodada_atual,status) VALUES($1,$2,$3,5,1,'aberta') RETURNING *", [j.id,modo,next.rows[0].n]);
+    }
+    const p = partida.rows[0];
+    let rodada = await client.query("SELECT id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo,numero_na_partida FROM rodadas WHERE partida_id=$1 AND status='aberta' ORDER BY numero_na_partida DESC LIMIT 1 FOR UPDATE", [p.id]);
     if (!rodada.rows[0]) {
-      const carry=await client.query("SELECT COALESCE(SUM(premio_disponivel),0) AS total FROM rodadas WHERE jogo_id=$1 AND modo=$2 AND status='encerrada'",[j.id,modo]);
+      if (Number(p.rodada_atual) > 5 || p.status !== 'aberta') throw new Error('A partida anterior está sendo finalizada. Atualize em instantes.');
       const numero = await client.query('SELECT COALESCE(MAX(numero),0)+1 AS n FROM rodadas WHERE jogo_id=$1', [j.id]);
-      rodada=await client.query("INSERT INTO rodadas(jogo_id,numero,status,modo,premio_disponivel) VALUES($1,$2,'aberta',$3,$4) RETURNING id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo",[j.id,numero.rows[0].n,modo,carry.rows[0].total]);
-      if(Number(carry.rows[0].total)>0)await client.query("UPDATE rodadas SET premio_disponivel=0 WHERE jogo_id=$1 AND modo=$2 AND status='encerrada'",[j.id,modo]);
+      rodada = await client.query(
+        "INSERT INTO rodadas(jogo_id,numero,status,modo,premio_disponivel,partida_id,numero_na_partida) VALUES($1,$2,'aberta',$3,0,$4,$5) RETURNING id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo,numero_na_partida",
+        [j.id,numero.rows[0].n,modo,p.id,p.rodada_atual]
+      );
     }
     await client.query('COMMIT');
-    res.json({jogo:j,rodada:rodada.rows[0],taxaPlataformaPercentual:TAXA_PLATAFORMA,modoJogo:modo});
+    res.json({
+      jogo:j,
+      partida:{id:p.id,numero:p.numero,rodadaAtual:Number(p.rodada_atual),totalRodadas:5,status:p.status,premioAcumulado:Number(p.premio_total)},
+      rodada:rodada.rows[0],
+      taxaPlataformaPercentual:TAXA_PLATAFORMA,
+      modoJogo:modo
+    });
   } catch(e) {
     await client.query('ROLLBACK');
-    console.error('Abrir rodada:',e.message);
-    res.status(500).json({erro:'Não foi possível abrir a rodada.'});
+    console.error('Abrir rodada da partida:',e.message);
+    res.status(500).json({erro:e.message || 'Não foi possível abrir a rodada da partida.'});
   } finally { client.release(); }
 });
 
