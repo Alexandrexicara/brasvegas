@@ -333,13 +333,38 @@ app.get('/api/jogos/:codigo/rodada-atual', auth, async (req, res) => {
 app.get('/api/rodadas/:id',auth,async(req,res)=>{
   try{
     const q=await pool.query(
-      "SELECT r.id,r.numero,r.status,r.modo,r.resultado,r.total_apostado,r.taxa_total,r.premio_disponivel,r.inicio_em,r.encerrada_em,a.id AS aposta_id,a.status AS aposta_status,a.premio_recebido,a.selecao FROM rodadas r LEFT JOIN apostas a ON a.rodada_id=r.id AND a.usuario_id=$2 WHERE r.id=$1 ORDER BY a.created_at DESC LIMIT 1",
+      "SELECT r.id,r.numero,r.numero_na_partida,r.partida_id,r.status,r.modo,r.resultado,r.total_apostado,r.taxa_total,r.premio_disponivel,r.inicio_em,r.encerrada_em,a.id AS aposta_id,a.status AS aposta_status,a.premio_recebido,a.selecao,p.numero AS numero_partida,p.status AS status_partida,p.rodada_atual,p.total_rodadas,p.premio_total,p.pontuacao_final,p.ganhadores_finais FROM rodadas r LEFT JOIN apostas a ON a.rodada_id=r.id AND a.usuario_id=$2 LEFT JOIN partidas p ON p.id=r.partida_id WHERE r.id=$1 ORDER BY a.created_at DESC LIMIT 1",
       [req.params.id,req.usuarioId]
     );
     if(!q.rows[0])return res.status(404).json({erro:'Rodada não encontrada.'});
     const row=q.rows[0];
-    res.json({id:row.id,numero:row.numero,status:row.status,modo:row.modo,resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
-  }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar a rodada.'});}
+    const scoreRounds=row.pontuacao_final||{};
+    const userPoints=Object.values(scoreRounds).reduce((sum,s)=>sum+Number(s?.[req.usuarioId]||0),0);
+    const finalResult=row.ganhadores_finais||{};
+    const shares=finalResult.prizeShares||{};
+    const finalWinnerIds=finalResult.winnerIds||[];
+    const userWon=finalWinnerIds.includes(req.usuarioId);
+    const matchFinal=row.status_partida==='finalizada';
+    res.json({
+      id:row.id,numero:row.numero,status:row.status,modo:row.modo,
+      resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,
+      totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),
+      premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,
+      aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null,
+      partida:{
+        id:row.partida_id,numero:row.numero_partida,numeroPartida:row.numero_partida,
+        numeroGeral:row.numero_partida,totalRodadas:Number(row.total_rodadas||5),
+        rodadaAtual:Number(row.rodada_atual||row.numero_na_partida||1),
+        status:row.status_partida,finalizada:matchFinal,
+        pontosUsuario:userPoints,pontuacao:scoreRounds,
+        ganhadores:finalWinnerIds,usuarioGanhou:userWon,
+        premioUsuario:Number(shares[req.usuarioId]||0),
+        resultadoFinal:matchFinal?finalResult:null,
+        premioAcumulado:Number(row.premio_total||0)
+      },
+      matchFinal
+    });
+  }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar o resultado da partida.'});}
 });
 
 app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
