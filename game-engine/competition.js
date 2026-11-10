@@ -45,7 +45,8 @@ function resolveMatch(roundScores, prizeAmount) {
       totals[id] = (totals[id] || 0) + Number(points);
     }
   }
-  const entries = Object.entries(totals);
+  // Jogador com zero vitórias não pode receber o prêmio só por ser o único participante.
+  const entries = Object.entries(totals).filter(([, points]) => points > 0);
   const highest = entries.length ? Math.max(...entries.map(([, points]) => points)) : 0;
   const winnerIds = entries.filter(([, points]) => points === highest).map(([id]) => id).sort();
   const shares = {};
