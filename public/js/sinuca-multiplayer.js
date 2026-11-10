@@ -56,9 +56,15 @@
    if(state.status==='finished'){
     const final=await api('/rodadas/'+roundId);
     if(final.status==='paga'||final.status==='encerrada'){
-     const won=final.aposta?.status==='paga';
-     message.textContent=(won?'VOCÊ VENCEU! ':'Partida finalizada. ')+ 'Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
-     joinBtn.disabled=false;shootBtn.disabled=true;
+     if(final.matchFinal){
+      const won=!!final.partida?.usuarioGanhou;
+      const tied=!!final.partida?.resultadoFinal?.tied;
+      message.textContent=(won?(tied?'EMPATE FINAL · VOCÊ RECEBEU SUA PARTE · ':'VOCÊ FOI O MAIOR PONTUADOR · '):'PARTIDA ENCERRADA · ')+
+       'Pontuação: '+Number(final.partida?.pontosUsuario||0)+' · Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.partida?.premioUsuario||0).toFixed(2);
+     }else{
+      message.textContent='RODADA '+Number(final.partida?.numeroPartida||1)+'/5 CONCLUÍDA · Pontos acumulados: '+Number(final.partida?.pontosUsuario||0)+'. Entre na próxima mesa para continuar. O prêmio permanece acumulado.';
+     }
+     joinBtn.disabled=false;format.disabled=false;amount.disabled=false;shootBtn.disabled=true;
      return;
     }
    }
@@ -67,9 +73,15 @@
     try{
      const final=await api('/rodadas/'+roundId);
      if(final.status==='paga'||final.status==='encerrada'){
-      const won=final.aposta?.status==='paga';
-      message.textContent=(won?'VOCÊ VENCEU! ':'Partida encerrada. ')+'Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
-      shootBtn.disabled=true;joinBtn.disabled=false;return;
+      if(final.matchFinal){
+       const won=!!final.partida?.usuarioGanhou;
+       const tied=!!final.partida?.resultadoFinal?.tied;
+       message.textContent=(won?(tied?'EMPATE FINAL · VOCÊ RECEBEU SUA PARTE · ':'VOCÊ FOI O MAIOR PONTUADOR · '):'PARTIDA ENCERRADA · ')+
+        'Pontuação: '+Number(final.partida?.pontosUsuario||0)+' · Prêmio: '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.partida?.premioUsuario||0).toFixed(2);
+      }else{
+       message.textContent='RODADA '+Number(final.partida?.numeroPartida||1)+'/5 CONCLUÍDA · Pontos acumulados: '+Number(final.partida?.pontosUsuario||0)+'. Entre na próxima mesa para continuar. O prêmio permanece acumulado.';
+      }
+      shootBtn.disabled=true;joinBtn.disabled=false;format.disabled=false;amount.disabled=false;return;
      }
     }catch(_){}
    }else message.textContent=e.message;
