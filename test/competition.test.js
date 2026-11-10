@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const { scoreRoundPlacements, resolveMatch } = require('../game-engine/competition');
 
 test('pontuação por rodada usa 3, 2 e 1 pontos', () => {
-  assert.deepEqual(scoreRoundPlacements(['a','b','c','d']), {a:3,b:2,c:1});
+  assert.deepEqual(scoreRoundPlacements(['a','b','c','d']), {a:3,b:2,c:1,d:0});
 });
 test('empate numa colocação divide os pontos ocupados', () => {
   assert.deepEqual(scoreRoundPlacements([{tiedPlayerIds:['a','b']},'c']), {a:2.5,b:2.5,c:1});
