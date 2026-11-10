@@ -374,9 +374,12 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const rodada = await client.query("SELECT r.*,j.codigo FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.id=$1 FOR UPDATE", [req.params.id]);
+    const rodada = await client.query("SELECT r.*,j.codigo,p.status AS partida_status,p.rodada_atual,p.total_rodadas FROM rodadas r JOIN jogos j ON j.id=r.jogo_id JOIN partidas p ON p.id=r.partida_id WHERE r.id=$1 FOR UPDATE OF r,p", [req.params.id]);
     if (!rodada.rows[0] || rodada.rows[0].status !== 'aberta') throw new Error('Rodada encerrada. Atualize o jogo.');
     if (!gameEngine.validateBetSelection(rodada.rows[0].codigo, selecao)) throw new Error('Seleção inválida para as regras deste jogo.');
+    if (rodada.rows[0].partida_status !== 'aberta') throw new Error('Esta partida já foi encerrada. Entre na próxima partida.');
+    const existente = await client.query("SELECT 1 FROM apostas WHERE rodada_id=$1 AND usuario_id=$2 AND status='reservada' LIMIT 1", [req.params.id,req.usuarioId]);
+    if (existente.rowCount) throw new Error('Você já participou desta rodada. Aguarde a próxima rodada da partida.');
     const modo=rodada.rows[0].modo||'treino';
     if(modo==='real'&&!APOSTAS_REAIS_HABILITADAS)throw new Error('Apostas reais estão bloqueadas.');
     const wallet=await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[req.usuarioId]);
@@ -421,6 +424,7 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
     }
     if(gameState){selecao={...selecao,...gameState};await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[selecao,bet.rows[0].id]);}
     await client.query('UPDATE rodadas SET total_apostado=total_apostado+$1,taxa_total=taxa_total+$2,premio_disponivel=premio_disponivel+$3 WHERE id=$4', [valor,taxa,premio,req.params.id]);
+    await client.query('UPDATE partidas SET premio_total=premio_total+$1 WHERE id=$2 AND status=\'aberta\'', [premio,rodada.rows[0].partida_id]);
     if(modo==='real'){
       await client.query(
         "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_reserva',$3,$4,$5,$6,$7,'aposta',$8,$9,'Reserva de aposta real; comissão de 10%')",
