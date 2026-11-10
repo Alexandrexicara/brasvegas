@@ -46,12 +46,11 @@ function resolveMatch(roundScores, prizeAmount) {
     }
   }
   const entries = Object.entries(totals);
-  if (!entries.length) throw new Error('Partida sem jogadores pontuados.');
-  const highest = Math.max(...entries.map(([, points]) => points));
+  const highest = entries.length ? Math.max(...entries.map(([, points]) => points)) : 0;
   const winnerIds = entries.filter(([, points]) => points === highest).map(([id]) => id).sort();
   const shares = {};
-  const base = Math.floor(prizeCents / winnerIds.length);
-  let remainder = prizeCents - base * winnerIds.length;
+  const base = winnerIds.length ? Math.floor(prizeCents / winnerIds.length) : 0;
+  let remainder = winnerIds.length ? prizeCents - base * winnerIds.length : 0;
   for (const id of winnerIds) shares[id] = (base + (remainder-- > 0 ? 1 : 0)) / 100;
   return {
     rounds: ROUNDS_PER_MATCH,
