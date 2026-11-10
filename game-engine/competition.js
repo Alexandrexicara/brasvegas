@@ -12,31 +12,26 @@ function scoreRoundPlacements(placements) {
   if (!Array.isArray(placements) || placements.length === 0) {
     throw new Error('A classificação da rodada está vazia.');
   }
-  const ids = placements.map(p => typeof p === 'string' ? p : p?.playerId);
-  if (ids.some(id => typeof id !== 'string' || !id.trim())) {
+  const groups = placements.map(p => p && typeof p === 'object' && Array.isArray(p.tiedPlayerIds)
+    ? [...new Set(p.tiedPlayerIds)]
+    : [typeof p === 'string' ? p : p?.playerId]);
+  const flatIds = groups.flat();
+  if (flatIds.some(id => typeof id !== 'string' || !id.trim())) {
     throw new Error('Cada colocação precisa ter um playerId válido.');
   }
   const seen = new Set();
-  for (const id of ids) {
+  for (const id of flatIds) {
     if (seen.has(id)) throw new Error('Jogador duplicado na classificação da rodada.');
     seen.add(id);
   }
 
   const scores = {};
   let position = 0;
-  while (position < placements.length) {
-    const current = placements[position];
-    const group = current && typeof current === 'object' && Array.isArray(current.tiedPlayerIds)
-      ? current.tiedPlayerIds
-      : [ids[position]];
-    const uniqueGroup = [...new Set(group)];
-    if (uniqueGroup.some(id => !seen.has(id))) {
-      throw new Error('Empate contém jogador que não participou da rodada.');
-    }
-    const occupied = uniqueGroup.length;
+  for (const group of groups) {
+    const occupied = group.length;
     const points = POINTS_BY_PLACE.slice(position, position + occupied)
       .reduce((sum, value) => sum + value, 0) / occupied;
-    for (const id of uniqueGroup) scores[id] = points;
+    for (const id of group) scores[id] = points;
     position += occupied;
   }
   return scores;
