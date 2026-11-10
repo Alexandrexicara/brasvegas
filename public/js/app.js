@@ -99,26 +99,80 @@ async function girarRoleta() {
     const resEl = document.getElementById('resultado');
     if (resEl) {
       resEl.style.display = 'block';
-      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Taxa 10%; 90% vai para o prêmio compartilhado. Aguardando o encerramento automático.';
+      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Taxa 10%; 90% entra no prêmio acumulado da partida de cinco rodadas. Aguardando o encerramento da rodada.';
     }
     let rodadaFinal=null;
-    for(let tentativa=0;tentativa<25;tentativa++){
+    for(let tentativa=0;tentativa<100;tentativa++){
       await new Promise(resolve=>setTimeout(resolve,2000));
       const consulta=await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}`,{headers:{'Authorization':'Bearer '+token}});
       const estado=await consulta.json();
       if(!consulta.ok)throw new Error(estado.erro||'Falha ao consultar resultado.');
-      if(estado.status==='paga'||estado.status==='encerrada'){rodadaFinal=estado;break;}
+      if(estado.matchFinal||estado.status==='encerrada'||estado.status==='paga'){rodadaFinal=estado;break;}
     }
     if(resEl){
-      if(!rodadaFinal)resEl.textContent='Aposta registrada. A rodada ainda está aberta; consulte novamente em instantes.';
-      else{
-        const ganhou=rodadaFinal.aposta?.status==='paga';
-        const premio=Number(rodadaFinal.aposta?.premioRecebido||0);
-        const unidade=rodadaFinal.modo==='treino'?'fichas':'R$';
+      if(!rodadaFinal)resEl.textContent='Aposta registrada. Aguardando o encerramento desta rodada.';
+      else if(rodadaFinal.matchFinal){
+        const ganhou=!!rodadaFinal.partida?.usuarioGanhou;
+        const premio=Number(rodadaFinal.partida?.premioUsuario||0);
+        const empate=!!rodadaFinal.partida?.resultadoFinal?.tied;
+        const unidade=rodadaFinal.modo==='treino'?'fichas':'R
+  } catch (e) {
+    alert(e.message);
+  } finally {
+    if (roleta) roleta.classList.remove('girando');
+  }
+}
+
+async function confirmarDeposito() {
+  if (!token) return alert('Faça login primeiro.');
+  const pendente = localStorage.getItem('brasvegas-pix-pendente');
+  if (pendente) {
+    const res = await fetch(`${API_BASE}/pix/cobrancas/${pendente}/confirmar`, {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await res.json();
+    if (!res.ok && res.status !== 202) return alert(d.erro || 'Não foi possível consultar o Pix.');
+    if (!d.confirmado) return alert('O Sicoob ainda não confirmou o pagamento. Depois de pagar, toque novamente em Confirmar.');
+    localStorage.removeItem('brasvegas-pix-pendente');
+    alert('Pix confirmado pelo Sicoob! Suas fichas foram creditadas.');
+    await carregarSaldo();
+    fecharModalDeposito();
+    return;
+  }
+  const valor = Number(document.getElementById('valor-deposito')?.value);
+  if (!valor || valor < 1) return alert('Informe um valor a partir de R$ 1,00.');
+  const res = await fetch(`${API_BASE}/pix/cobrancas`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+    body: JSON.stringify({ valor })
+  });
+  const d = await res.json();
+  if (!res.ok) return alert(d.erro || 'Não foi possível gerar o Pix.');
+  localStorage.setItem('brasvegas-pix-pendente', d.cobrancaId);
+  if (d.pixCopiaECola && navigator.clipboard?.writeText) {
+    try { await navigator.clipboard.writeText(d.pixCopiaECola); } catch (_) {}
+  }
+  alert('Cobrança Pix criada. ' + (d.pixCopiaECola ? 'O código Pix Copia e Cola foi copiado, se o navegador permitiu. ' : '') + 'Pague no aplicativo do seu banco e depois toque novamente em Confirmar para consultar o Sicoob.');
+  if (d.pixCopiaECola) prompt('Pix Copia e Cola:', d.pixCopiaECola);
+}
+
+function abrirModalDeposito() { document.getElementById('modal-deposito')?.classList.add('aberto'); }
+function fecharModalDeposito() { document.getElementById('modal-deposito')?.classList.remove('aberto'); }
+function abrirModalSaque() { document.getElementById('modal-saque')?.classList.add('aberto'); }
+function fecharModalSaque() { document.getElementById('modal-saque')?.classList.remove('aberto'); }
+
+document.addEventListener('DOMContentLoaded',()=>{
+  atualizarInterface();
+  if(token)carregarSaldo().catch(()=>{});
+  if(token&&window.location.pathname.includes('index.html'))window.location.href='salao.html';
+});
+;
         const sorteio=rodadaFinal.resultado?.result||{};
-        resEl.innerHTML='<p><strong>'+(ganhou?'VOCÊ GANHOU':'RODADA ENCERRADA')+'</strong></p>'+
-          '<p>Resultado: '+(sorteio.number??JSON.stringify(sorteio))+'</p>'+
-          '<p>Seu prêmio: '+unidade+' '+premio.toFixed(2)+'</p>';
+        resEl.innerHTML='<p><strong>'+(ganhou?(empate?'EMPATE FINAL · VOCÊ RECEBEU SUA PARTE':'VOCÊ FOI O MAIOR PONTUADOR'):'PARTIDA ENCERRADA · VOCÊ NÃO FOI O MAIOR PONTUADOR')+'</strong></p>'+
+          '<p>Resultado da última rodada: '+(sorteio.number??JSON.stringify(sorteio))+'</p>'+
+          '<p>Prêmio recebido: '+unidade+' '+premio.toFixed(2)+'</p>';
+      }else{
+        resEl.textContent='RODADA '+Number(rodadaFinal.partida?.numeroPartida||rodadaData.rodada.numero_na_partida||1)+'/5 CONCLUÍDA · Pontos acumulados: '+Number(rodadaFinal.partida?.pontosUsuario||0)+'. Jogue novamente para participar da próxima rodada. O prêmio segue acumulado.';
       }
     }
     await carregarSaldo();
