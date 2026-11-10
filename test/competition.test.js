@@ -8,7 +8,7 @@ test('cada vencedor da rodada recebe um ponto, sem duplicar por apostas', () => 
     {id:'a1',usuario_id:'a'},{id:'a2',usuario_id:'a'},
     {id:'b1',usuario_id:'b'},{id:'c1',usuario_id:'c'}
   ];
-  assert.deepEqual(scoreRoundWinners(bets,['a1','a2','b1']), {a:1,b:1});
+  assert.deepEqual(scoreRoundWinners(bets,['a1','a2','b1']), {a:1,b:1,c:0});
 });
 test('partida de cinco rodadas paga somente ao maior pontuador', () => {
   const rounds = [{a:1},{b:1},{a:1},{a:1,c:1},{a:1}];
@@ -34,4 +34,10 @@ test('recusa partida com menos ou mais de cinco rodadas', () => {
 });
 test('recusa valor de prêmio inválido', () => {
   assert.throws(() => resolveMatch(Array.from({length:5},()=>({a:1})), -1), /Prêmio/);
+});
+
+test('partida sem participantes encerra sem inventar ganhador ou pagamento', () => {
+  const result = resolveMatch([{}, {}, {}, {}, {}], 0);
+  assert.deepEqual(result.winnerIds, []);
+  assert.deepEqual(result.prizeShares, {});
 });
