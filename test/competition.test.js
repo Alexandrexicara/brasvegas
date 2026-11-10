@@ -41,3 +41,9 @@ test('partida sem participantes encerra sem inventar ganhador ou pagamento', () 
   assert.deepEqual(result.winnerIds, []);
   assert.deepEqual(result.prizeShares, {});
 });
+
+test('jogador com zero vitórias não recebe o prêmio por ser o único participante', () => {
+  const result = resolveMatch([{a:0},{a:0},{a:0},{a:0},{a:0}], 20);
+  assert.deepEqual(result.winnerIds, []);
+  assert.deepEqual(result.prizeShares, {});
+});
