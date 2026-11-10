@@ -14,7 +14,9 @@ function scoreRoundWinners(bets, winnerBetIds) {
   const winners = new Set(winnerBetIds);
   const points = {};
   for (const bet of bets) {
-    if (winners.has(bet.id)) points[String(bet.usuario_id)] = 1;
+    const uid = String(bet.usuario_id);
+    if (!Object.prototype.hasOwnProperty.call(points,uid)) points[uid] = 0;
+    if (winners.has(bet.id)) points[uid] = 1;
   }
   return points;
 }
