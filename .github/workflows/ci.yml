@@ -4,9 +4,11 @@ on:
     branches:
       - main
       - "feature/**"
+      - "fix/**"
   pull_request:
     branches:
       - main
+      - "feature/**"
   workflow_dispatch:
 permissions:
   contents: read

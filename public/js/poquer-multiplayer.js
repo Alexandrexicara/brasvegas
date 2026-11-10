@@ -36,7 +36,7 @@
    const current=await api('/jogos/poquer/rodada-atual');
    const bet=await api('/rodadas/'+current.rodada.id+'/apostas',{method:'POST',body:JSON.stringify({valor:value,selecao:{type:'draw'}})});
    betId=bet.apostaId;roundId=current.rodada.id;hand=bet.gameState.hand;status=bet.gameState.status;
-   render();result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Mão distribuída pelo servidor. Taxa 10%; 90% vai para o prêmio compartilhado. Selecione as cartas que deseja trocar.';
+   render();result.textContent=(current.modoJogo==='treino'?'MODO TREINO · fichas virtuais sem valor monetário. ':'')+'Mão distribuída pelo servidor. Taxa 10%; 90% entra no prêmio acumulado da partida de cinco rodadas. Selecione as cartas que deseja trocar.';
    await refreshBalance();drawBtn.disabled=false;
    }catch(e){
    result.textContent=e.message;newBtn.disabled=false;
@@ -57,14 +57,19 @@
    hand=data.gameState.hand;status=data.gameState.status;render();
    result.textContent='Sua mão: '+(data.gameState.rank?.name||'avaliada')+'. Aguardando o encerramento da rodada.';
    let final=null;
-   for(let i=0;i<25;i++){
+   for(let i=0;i<100;i++){
     await new Promise(resolve=>setTimeout(resolve,2000));
     const state=await api('/rodadas/'+roundId);
-    if(state.status==='paga'||state.status==='encerrada'){final=state;break;}
+    if(state.matchFinal||state.status==='paga'||state.status==='encerrada'){final=state;break;}
    }
    if(final){
     const detail=final.resultado?.byBetId?.[betId];
-    result.textContent=(final.modo==='treino'?'MODO TREINO · ':'')+(final.aposta?.status==='paga'?'VOCÊ VENCEU A MESA · ':'RODADA ENCERRADA · ')+(detail?.rank?.name||'mão apurada')+' · Prêmio '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.aposta?.premioRecebido||0).toFixed(2);
+    if(final.matchFinal){
+     const won=!!final.partida?.usuarioGanhou,tied=!!final.partida?.resultadoFinal?.tied;
+     result.textContent=(won?(tied?'EMPATE FINAL · VOCÊ RECEBEU SUA PARTE · ':'VOCÊ FOI O MAIOR PONTUADOR · '):'PARTIDA ENCERRADA · ')+(detail?.rank?.name||'mão apurada')+' · Prêmio '+(final.modo==='treino'?'fichas ':'R$ ')+Number(final.partida?.premioUsuario||0).toFixed(2);
+    }else{
+     result.textContent='RODADA '+Number(final.partida?.numeroPartida||1)+'/5 CONCLUÍDA · Pontos acumulados: '+Number(final.partida?.pontosUsuario||0)+'. Clique em NOVA MÃO para participar da próxima rodada. Prêmio ainda acumulado.';
+    }
     await refreshBalance();newBtn.disabled=false;
    }else result.textContent+=' Resultado será atualizado quando a rodada encerrar.';
   }catch(e){result.textContent=e.message;drawBtn.disabled=false;newBtn.disabled=false;}

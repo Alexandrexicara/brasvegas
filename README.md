@@ -15,9 +15,11 @@ Plataforma de jogos multiplayer com backend Node.js/Express e PostgreSQL (Neon).
 
 ## Carteiras e rodadas
 
-- Cada aposta separa 10% para a taxa da plataforma e 90% para o prêmio da rodada.
-- Os vencedores dividem o prêmio proporcionalmente ao valor de suas apostas vencedoras.
-- Rodadas sem vencedores carregam o prêmio para a próxima rodada do mesmo jogo e modo.
+- Cada aposta separa 10% para a plataforma e 90% para o prêmio acumulado da partida.
+- Cada partida tem cinco rodadas. Cada jogador que vence uma rodada recebe um ponto; os demais participantes da rodada recebem zero.
+- Ao fim da quinta rodada, somente o jogador com a maior pontuação recebe o prêmio acumulado. Se houver empate na maior pontuação final, o prêmio é dividido igualmente apenas entre os empatados.
+- O prêmio não é pago por rodada: permanece acumulado até a apuração final da partida.
+- O resultado e a pontuação são calculados no servidor; a carteira é liquidada uma única vez ao encerrar a quinta rodada.
 - O modo de treino usa fichas virtuais, sem valor monetário, com saldo inicial de 1.000 fichas e recarga gratuita quando o saldo fica abaixo de 10.
 - O modo real permanece bloqueado por padrão. Não habilite dinheiro real sem integração bancária, autorização do provedor e revisão jurídica.
 

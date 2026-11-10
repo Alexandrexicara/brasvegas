@@ -384,4 +384,4 @@ function resolveRound(code,bets,roundState=null) {
   return {result,winnerIds,byBetId};
 }
 
-module.exports={pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,startBlackjackGame,blackjackAction,startPokerGame,drawPokerCards,startBilliardsGame,simulateBilliardsShot,resolveRound};
+module.exports={...require('./competition'),pick,shuffle,deck,blackjackTotal,baccaratTotal,bankerShouldDraw,pokerRank,comparePoker,rouletteResult,validateRouletteBet,rollDice,crapsResult,diceResult,evaluateDiceBet,slotResult,wallResult,dealBlackjack,dealBaccarat,makeFairCommitment,verifyFairCommitment,rouletteBetWins,fruitResult,playBlackjack,validateBetSelection,resolveBlackjackTable,startBlackjackGame,blackjackAction,startPokerGame,drawPokerCards,startBilliardsGame,simulateBilliardsShot,resolveRound};

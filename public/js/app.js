@@ -84,12 +84,12 @@ async function girarRoleta() {
   const roleta = document.getElementById('roleta');
   if (roleta) roleta.classList.add('girando');
   try {
-    const rodadaRes = await fetch(`${API_BASE}/jogos/roleta/rodada-atual`, {
+    const rodadaRes = await fetch(API_BASE + '/jogos/roleta/rodada-atual', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
     const rodadaData = await rodadaRes.json();
     if (!rodadaRes.ok) throw new Error(rodadaData.erro || 'Não foi possível abrir a rodada.');
-    const apostaRes = await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}/apostas`, {
+    const apostaRes = await fetch(API_BASE + '/rodadas/' + rodadaData.rodada.id + '/apostas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
       body: JSON.stringify({ valor, selecao })
@@ -99,26 +99,38 @@ async function girarRoleta() {
     const resEl = document.getElementById('resultado');
     if (resEl) {
       resEl.style.display = 'block';
-      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Taxa 10%; 90% vai para o prêmio compartilhado. Aguardando o encerramento automático.';
+      resEl.textContent = 'Aposta confirmada na rodada #' + rodadaData.rodada.numero + '. Taxa 10%; 90% entra no prêmio acumulado da partida de cinco rodadas. Aguardando o encerramento da rodada.';
     }
-    let rodadaFinal=null;
-    for(let tentativa=0;tentativa<25;tentativa++){
-      await new Promise(resolve=>setTimeout(resolve,2000));
-      const consulta=await fetch(`${API_BASE}/rodadas/${rodadaData.rodada.id}`,{headers:{'Authorization':'Bearer '+token}});
-      const estado=await consulta.json();
-      if(!consulta.ok)throw new Error(estado.erro||'Falha ao consultar resultado.');
-      if(estado.status==='paga'||estado.status==='encerrada'){rodadaFinal=estado;break;}
+    let rodadaFinal = null;
+    for (let tentativa = 0; tentativa < 100; tentativa++) {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      const consulta = await fetch(API_BASE + '/rodadas/' + rodadaData.rodada.id, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const estado = await consulta.json();
+      if (!consulta.ok) throw new Error(estado.erro || 'Falha ao consultar resultado.');
+      if (estado.matchFinal || estado.status === 'encerrada' || estado.status === 'paga') {
+        rodadaFinal = estado;
+        break;
+      }
     }
-    if(resEl){
-      if(!rodadaFinal)resEl.textContent='Aposta registrada. A rodada ainda está aberta; consulte novamente em instantes.';
-      else{
-        const ganhou=rodadaFinal.aposta?.status==='paga';
-        const premio=Number(rodadaFinal.aposta?.premioRecebido||0);
-        const unidade=rodadaFinal.modo==='treino'?'fichas':'R$';
-        const sorteio=rodadaFinal.resultado?.result||{};
-        resEl.innerHTML='<p><strong>'+(ganhou?'VOCÊ GANHOU':'RODADA ENCERRADA')+'</strong></p>'+
-          '<p>Resultado: '+(sorteio.number??JSON.stringify(sorteio))+'</p>'+
-          '<p>Seu prêmio: '+unidade+' '+premio.toFixed(2)+'</p>';
+    if (resEl) {
+      if (!rodadaFinal) {
+        resEl.textContent = 'Aposta registrada. Aguardando o encerramento desta rodada.';
+      } else if (rodadaFinal.matchFinal) {
+        const ganhou = !!rodadaFinal.partida?.usuarioGanhou;
+        const premio = Number(rodadaFinal.partida?.premioUsuario || 0);
+        const empate = !!rodadaFinal.partida?.resultadoFinal?.tied;
+        const unidade = rodadaFinal.modo === 'treino' ? 'fichas' : 'R$';
+        const sorteio = rodadaFinal.resultado?.result || {};
+        resEl.innerHTML = '<p><strong>' +
+          (ganhou ? (empate ? 'EMPATE FINAL · VOCÊ RECEBEU SUA PARTE' : 'VOCÊ FOI O MAIOR PONTUADOR') : 'PARTIDA ENCERRADA · VOCÊ NÃO FOI O MAIOR PONTUADOR') +
+          '</strong></p><p>Resultado da última rodada: ' + (sorteio.number ?? JSON.stringify(sorteio)) +
+          '</p><p>Prêmio recebido: ' + unidade + ' ' + premio.toFixed(2) + '</p>';
+      } else {
+        resEl.textContent = 'RODADA ' + Number(rodadaFinal.partida?.numeroPartida || rodadaData.rodada.numero_na_partida || 1) +
+          '/5 CONCLUÍDA · Pontos acumulados: ' + Number(rodadaFinal.partida?.pontosUsuario || 0) +
+          '. Jogue novamente para participar da próxima rodada. O prêmio segue acumulado.';
       }
     }
     await carregarSaldo();

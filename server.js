@@ -296,35 +296,75 @@ app.get('/api/jogos/:codigo/rodada-atual', auth, async (req, res) => {
     await client.query('BEGIN');
     const jogo = await client.query('SELECT id,codigo,nome FROM jogos WHERE codigo=$1 AND ativo=true FOR SHARE', [req.params.codigo]);
     if (!jogo.rows[0]) { await client.query('ROLLBACK'); return res.status(404).json({ erro:'Jogo não encontrado.' }); }
-    const j=jogo.rows[0];
-    const modo=APOSTAS_REAIS_HABILITADAS?'real':'treino';
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['brasvegas-round:'+j.id+':'+modo]);
-    let rodada=await client.query("SELECT id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo FROM rodadas WHERE jogo_id=$1 AND modo=$2 AND status='aberta' ORDER BY numero DESC LIMIT 1",[j.id,modo]);
+    const j = jogo.rows[0];
+    const modo = APOSTAS_REAIS_HABILITADAS ? 'real' : 'treino';
+    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['brasvegas-match:'+j.id+':'+modo]);
+
+    let partida = await client.query("SELECT * FROM partidas WHERE jogo_id=$1 AND modo=$2 AND status='aberta' ORDER BY numero DESC LIMIT 1 FOR UPDATE", [j.id,modo]);
+    if (!partida.rows[0]) {
+      const next = await client.query('SELECT COALESCE(MAX(numero),0)+1 AS n FROM partidas WHERE jogo_id=$1 AND modo=$2', [j.id,modo]);
+      partida = await client.query("INSERT INTO partidas(jogo_id,modo,numero,total_rodadas,rodada_atual,status) VALUES($1,$2,$3,5,1,'aberta') RETURNING *", [j.id,modo,next.rows[0].n]);
+    }
+    const p = partida.rows[0];
+    let rodada = await client.query("SELECT id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo,numero_na_partida FROM rodadas WHERE partida_id=$1 AND status='aberta' ORDER BY numero_na_partida DESC LIMIT 1 FOR UPDATE", [p.id]);
     if (!rodada.rows[0]) {
-      const carry=await client.query("SELECT COALESCE(SUM(premio_disponivel),0) AS total FROM rodadas WHERE jogo_id=$1 AND modo=$2 AND status='encerrada'",[j.id,modo]);
+      if (Number(p.rodada_atual) > 5 || p.status !== 'aberta') throw new Error('A partida anterior está sendo finalizada. Atualize em instantes.');
       const numero = await client.query('SELECT COALESCE(MAX(numero),0)+1 AS n FROM rodadas WHERE jogo_id=$1', [j.id]);
-      rodada=await client.query("INSERT INTO rodadas(jogo_id,numero,status,modo,premio_disponivel) VALUES($1,$2,'aberta',$3,$4) RETURNING id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo",[j.id,numero.rows[0].n,modo,carry.rows[0].total]);
-      if(Number(carry.rows[0].total)>0)await client.query("UPDATE rodadas SET premio_disponivel=0 WHERE jogo_id=$1 AND modo=$2 AND status='encerrada'",[j.id,modo]);
+      rodada = await client.query(
+        "INSERT INTO rodadas(jogo_id,numero,status,modo,premio_disponivel,partida_id,numero_na_partida) VALUES($1,$2,'aberta',$3,0,$4,$5) RETURNING id,numero,status,total_apostado,taxa_total,premio_disponivel,inicio_em,modo,numero_na_partida",
+        [j.id,numero.rows[0].n,modo,p.id,p.rodada_atual]
+      );
     }
     await client.query('COMMIT');
-    res.json({jogo:j,rodada:rodada.rows[0],taxaPlataformaPercentual:TAXA_PLATAFORMA,modoJogo:modo});
+    res.json({
+      jogo:j,
+      partida:{id:p.id,numero:p.numero,rodadaAtual:Number(p.rodada_atual),totalRodadas:5,status:p.status,premioAcumulado:Number(p.premio_total)},
+      rodada:rodada.rows[0],
+      taxaPlataformaPercentual:TAXA_PLATAFORMA,
+      modoJogo:modo
+    });
   } catch(e) {
     await client.query('ROLLBACK');
-    console.error('Abrir rodada:',e.message);
-    res.status(500).json({erro:'Não foi possível abrir a rodada.'});
+    console.error('Abrir rodada da partida:',e.message);
+    res.status(500).json({erro:e.message || 'Não foi possível abrir a rodada da partida.'});
   } finally { client.release(); }
 });
 
 app.get('/api/rodadas/:id',auth,async(req,res)=>{
   try{
     const q=await pool.query(
-      "SELECT r.id,r.numero,r.status,r.modo,r.resultado,r.total_apostado,r.taxa_total,r.premio_disponivel,r.inicio_em,r.encerrada_em,a.id AS aposta_id,a.status AS aposta_status,a.premio_recebido,a.selecao FROM rodadas r LEFT JOIN apostas a ON a.rodada_id=r.id AND a.usuario_id=$2 WHERE r.id=$1 ORDER BY a.created_at DESC LIMIT 1",
+      "SELECT r.id,r.numero,r.numero_na_partida,r.partida_id,r.status,r.modo,r.resultado,r.total_apostado,r.taxa_total,r.premio_disponivel,r.inicio_em,r.encerrada_em,a.id AS aposta_id,a.status AS aposta_status,a.premio_recebido,a.selecao,p.numero AS numero_partida,p.status AS status_partida,p.rodada_atual,p.total_rodadas,p.premio_total,p.pontuacao_final,p.ganhadores_finais FROM rodadas r LEFT JOIN apostas a ON a.rodada_id=r.id AND a.usuario_id=$2 LEFT JOIN partidas p ON p.id=r.partida_id WHERE r.id=$1 ORDER BY a.created_at DESC LIMIT 1",
       [req.params.id,req.usuarioId]
     );
     if(!q.rows[0])return res.status(404).json({erro:'Rodada não encontrada.'});
     const row=q.rows[0];
-    res.json({id:row.id,numero:row.numero,status:row.status,modo:row.modo,resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null});
-  }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar a rodada.'});}
+    const scoreRounds=row.pontuacao_final||{};
+    const userPoints=Object.values(scoreRounds).reduce((sum,s)=>sum+Number(s?.[req.usuarioId]||0),0);
+    const finalResult=row.ganhadores_finais||{};
+    const shares=finalResult.prizeShares||{};
+    const finalWinnerIds=finalResult.winnerIds||[];
+    const userWon=finalWinnerIds.includes(req.usuarioId);
+    const matchFinal=row.status_partida==='finalizada';
+    res.json({
+      id:row.id,numero:row.numero,status:row.status,modo:row.modo,
+      resultado:(row.status==='paga'||row.status==='encerrada')?row.resultado:null,
+      totalApostado:Number(row.total_apostado),taxaTotal:Number(row.taxa_total),
+      premioDisponivel:Number(row.premio_disponivel),inicioEm:row.inicio_em,encerradaEm:row.encerrada_em,
+      aposta:row.aposta_id?{id:row.aposta_id,status:row.aposta_status,premioRecebido:Number(row.premio_recebido),selecao:selecaoPublica(row.selecao)}:null,
+      partida:{
+        id:row.partida_id,numero:row.numero_partida,numeroPartida:row.numero_partida,
+        numeroGeral:row.numero_partida,totalRodadas:Number(row.total_rodadas||5),
+        rodadaAtual:Number(row.rodada_atual||row.numero_na_partida||1),
+        status:row.status_partida,finalizada:matchFinal,
+        pontosUsuario:userPoints,pontuacao:scoreRounds,
+        ganhadores:finalWinnerIds,usuarioGanhou:userWon,
+        premioUsuario:Number(shares[req.usuarioId]||0),
+        resultadoFinal:matchFinal?finalResult:null,
+        premioAcumulado:Number(row.premio_total||0)
+      },
+      matchFinal
+    });
+  }catch(e){console.error('Consultar rodada:',e.message);res.status(500).json({erro:'Não foi possível consultar o resultado da partida.'});}
 });
 
 app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
@@ -334,9 +374,12 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const rodada = await client.query("SELECT r.*,j.codigo FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.id=$1 FOR UPDATE", [req.params.id]);
+    const rodada = await client.query("SELECT r.*,j.codigo,p.status AS partida_status,p.rodada_atual,p.total_rodadas FROM rodadas r JOIN jogos j ON j.id=r.jogo_id JOIN partidas p ON p.id=r.partida_id WHERE r.id=$1 FOR UPDATE OF r,p", [req.params.id]);
     if (!rodada.rows[0] || rodada.rows[0].status !== 'aberta') throw new Error('Rodada encerrada. Atualize o jogo.');
     if (!gameEngine.validateBetSelection(rodada.rows[0].codigo, selecao)) throw new Error('Seleção inválida para as regras deste jogo.');
+    if (rodada.rows[0].partida_status !== 'aberta') throw new Error('Esta partida já foi encerrada. Entre na próxima partida.');
+    const existente = await client.query("SELECT 1 FROM apostas WHERE rodada_id=$1 AND usuario_id=$2 AND status='reservada' LIMIT 1", [req.params.id,req.usuarioId]);
+    if (existente.rowCount) throw new Error('Você já participou desta rodada. Aguarde a próxima rodada da partida.');
     const modo=rodada.rows[0].modo||'treino';
     if(modo==='real'&&!APOSTAS_REAIS_HABILITADAS)throw new Error('Apostas reais estão bloqueadas.');
     const wallet=await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[req.usuarioId]);
@@ -381,6 +424,7 @@ app.post('/api/rodadas/:id/apostas', auth, async (req, res) => {
     }
     if(gameState){selecao={...selecao,...gameState};await client.query('UPDATE apostas SET selecao=$1 WHERE id=$2',[selecao,bet.rows[0].id]);}
     await client.query('UPDATE rodadas SET total_apostado=total_apostado+$1,taxa_total=taxa_total+$2,premio_disponivel=premio_disponivel+$3 WHERE id=$4', [valor,taxa,premio,req.params.id]);
+    await client.query('UPDATE partidas SET premio_total=premio_total+$1 WHERE id=$2 AND status=\'aberta\'', [premio,rodada.rows[0].partida_id]);
     if(modo==='real'){
       await client.query(
         "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_reserva',$3,$4,$5,$6,$7,'aposta',$8,$9,'Reserva de aposta real; comissão de 10%')",
@@ -465,48 +509,155 @@ app.post('/api/sinuca/:rodadaId/tacada',auth,async(req,res)=>{
 });
 
 async function liquidarRodadaPorId(rodadaId) {
-  const client=await pool.connect();
+  const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const r=await client.query("SELECT r.*,j.codigo FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.id=$1 FOR UPDATE",[rodadaId]);
-    if(!r.rows[0]||r.rows[0].status!=='aberta'){await client.query('ROLLBACK');return {ignorada:true};}
-    const apostas=await client.query("SELECT * FROM apostas WHERE rodada_id=$1 AND status='reservada' ORDER BY created_at,id FOR UPDATE",[rodadaId]);
-    if(!apostas.rowCount){await client.query('ROLLBACK');return {vazia:true};}
-    const apuracao=gameEngine.resolveRound(r.rows[0].codigo,apostas.rows,r.rows[0].resultado);
-    const vencedoras=apostas.rows.filter(a=>apuracao.winnerIds.includes(a.id));
-    const premioCentavos=Math.round(Number(r.rows[0].premio_disponivel)*100);
-    const pesoTotal=vencedoras.reduce((s,a)=>s+Math.round(Number(a.valor_para_premio)*100),0);
-    const pagamentos=new Map();let distribuido=0;
-    vencedoras.forEach((a,i)=>{
-      const cents=i===vencedoras.length-1?premioCentavos-distribuido:Math.floor(premioCentavos*Math.round(Number(a.valor_para_premio)*100)/pesoTotal);
-      pagamentos.set(a.id,cents);distribuido+=cents;
-    });
-    for(const a of apostas.rows){
-      const pagamento=pagamentos.has(a.id)?pagamentos.get(a.id)/100:0;
-      if(r.rows[0].modo==='real'){
-        const w=await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[a.usuario_id]);
-        if(!w.rows[0])throw new Error('Carteira do participante não encontrada.');
-        const disp=Number(w.rows[0].saldo_disponivel),reserv=Number(w.rows[0].saldo_reservado),aposta=Number(a.valor);
-        await client.query('UPDATE carteiras SET saldo_disponivel=saldo_disponivel+$1,saldo_reservado=saldo_reservado-$2,updated_at=NOW() WHERE id=$3',[pagamento,aposta,w.rows[0].id]);
-        await client.query(
-          "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,$3,$4,$5,$6,$7,$8,'rodada',$9,$10,$11)",
-          [w.rows[0].id,a.usuario_id,pagamento>0?'premio_credito':'aposta_liquidada',pagamento>0?pagamento:aposta,disp,disp+pagamento,reserv,reserv-aposta,rodadaId,(pagamento>0?'payout:':'loss:')+a.id,pagamento>0?'Prêmio da rodada real':'Liquidação de aposta real']
-        );
-      }else if(pagamento>0){
-        const w=await client.query('SELECT saldo_treino FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[a.usuario_id]);
-        if(!w.rows[0])throw new Error('Carteira de treino não encontrada.');
-        const antes=Number(w.rows[0].saldo_treino);
-        await client.query('UPDATE carteiras SET saldo_treino=saldo_treino+$1,updated_at=NOW() WHERE usuario_id=$2',[pagamento,a.usuario_id]);
-        await client.query("INSERT INTO lancamentos_treino(usuario_id,tipo,valor,saldo_antes,saldo_depois,referencia_id,chave_idempotencia,descricao) VALUES($1,'premio',$2,$3,$4,$5,$6,'Prêmio de rodada com fichas virtuais')",[a.usuario_id,pagamento,antes,antes+pagamento,a.id,'treino:payout:'+a.id]);
-      }
-      await client.query("UPDATE apostas SET status=$1,premio_recebido=$2 WHERE id=$3",[pagamento>0?'paga':'perdedora',pagamento,a.id]);
+    const q = await client.query(
+      "SELECT r.*,j.codigo,p.numero AS numero_partida,p.rodada_atual,p.total_rodadas,p.status AS status_partida,p.premio_total,p.pontuacao_final FROM rodadas r JOIN jogos j ON j.id=r.jogo_id JOIN partidas p ON p.id=r.partida_id WHERE r.id=$1 FOR UPDATE OF r,p",
+      [rodadaId]
+    );
+    if (!q.rows[0] || q.rows[0].status !== 'aberta' || q.rows[0].status_partida !== 'aberta') {
+      await client.query('ROLLBACK'); return {ignorada:true};
     }
-    const resultadoSalvo={...apuracao,apuradoEm:new Date().toISOString(),regra:'resultado gerado no servidor com crypto.randomInt'};
-    const statusFinal=vencedoras.length?'paga':'encerrada';
-    await client.query("UPDATE rodadas SET status=$1,resultado=$2,encerrada_em=NOW(),premio_disponivel=$3 WHERE id=$4",[statusFinal,resultadoSalvo,vencedoras.length?0:Number(r.rows[0].premio_disponivel),rodadaId]);
+    const rodada = q.rows[0];
+    const apostas = await client.query(
+      "SELECT * FROM apostas WHERE rodada_id=$1 AND status='reservada' ORDER BY usuario_id,created_at,id FOR UPDATE",
+      [rodadaId]
+    );
+    if (apostas.rowCount && rodada.codigo === 'sinuca' && rodada.resultado?.status !== 'finished') {
+      await client.query('ROLLBACK'); return {aguardandoSinuca:true};
+    }
+
+    const apuracao = apostas.rowCount
+      ? gameEngine.resolveRound(rodada.codigo,apostas.rows,rodada.resultado)
+      : {result:{semApostas:true},winnerIds:[],byBetId:{}};
+    const pontosRodada = gameEngine.scoreRoundWinners(apostas.rows,apuracao.winnerIds);
+    const numeroRodada = Number(rodada.numero_na_partida);
+    const pontuacao = {...(rodada.pontuacao_final || {}),[String(numeroRodada)]:pontosRodada};
+    const resultadoRodada = {
+      ...apuracao,
+      winnerBetIds:apuracao.winnerIds,
+      winnerUserIds:Object.keys(pontosRodada).filter(id=>pontosRodada[id] > 0),
+      scoreByUser:pontosRodada,
+      numeroRodada,
+      apuradoEm:new Date().toISOString(),
+      regra:'um ponto por rodada vencida; prêmio somente ao maior pontuador após cinco rodadas'
+    };
+
+    await client.query(
+      "UPDATE rodadas SET status='encerrada',resultado=$1,encerrada_em=NOW() WHERE id=$2",
+      [resultadoRodada,rodadaId]
+    );
+
+    if (numeroRodada < 5) {
+      await client.query(
+        "UPDATE partidas SET rodada_atual=$1,pontuacao_final=$2::jsonb WHERE id=$3",
+        [numeroRodada+1,JSON.stringify(pontuacao),rodada.partida_id]
+      );
+      await client.query('COMMIT');
+      return {
+        jogo:rodada.codigo,partida:rodada.partida_id,rodada:numeroRodada,
+        totalRodadas:5,partidaFinalizada:false,pontosRodada:pontosRodada,
+        mensagem:'Rodada apurada. Nenhum prêmio foi pago antes do encerramento das cinco rodadas.'
+      };
+    }
+
+    const roundScores = Array.from({length:5},(_,i)=>pontuacao[String(i+1)] || {});
+    const partidaResult = gameEngine.resolveMatch(roundScores,Number(rodada.premio_total));
+    const todasApostas = await client.query(
+      "SELECT a.* FROM apostas a JOIN rodadas r ON r.id=a.rodada_id WHERE r.partida_id=$1 AND a.status='reservada' ORDER BY a.usuario_id,a.created_at,a.id FOR UPDATE OF a",
+      [rodada.partida_id]
+    );
+    const byUser = new Map();
+    for (const bet of todasApostas.rows) {
+      const uid = String(bet.usuario_id);
+      if (!byUser.has(uid)) byUser.set(uid,[]);
+      byUser.get(uid).push(bet);
+    }
+    const winners = new Set(partidaResult.winnerIds);
+    const prizeShares = partidaResult.prizeShares;
+
+    for (const [uid,userBets] of [...byUser.entries()].sort((a,b)=>a[0].localeCompare(b[0]))) {
+      const walletQ = await client.query('SELECT * FROM carteiras WHERE usuario_id=$1 FOR UPDATE',[uid]);
+      if (!walletQ.rows[0]) throw new Error('Carteira do participante não encontrada: '+uid);
+      const w = walletQ.rows[0];
+      const totalReservado = userBets.reduce((sum,b)=>sum+Math.round(Number(b.valor)*100),0)/100;
+      const premio = Number(prizeShares[uid] || 0);
+
+      if (rodada.modo === 'real') {
+        const disponivel = Number(w.saldo_disponivel);
+        let reservadoAtual = Number(w.saldo_reservado);
+        for (const bet of userBets) {
+          const valorBet = Number(bet.valor);
+          const depois = reservadoAtual - valorBet;
+          await client.query(
+            "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'aposta_liquidada',$3,$4,$4,$5,$6,'partida',$7,$8,'Liquidação da aposta ao encerrar a partida de cinco rodadas')",
+            [w.id,uid,valorBet,disponivel,reservadoAtual,depois,bet.id,'match-settle:'+rodada.partida_id+':bet:'+bet.id]
+          );
+          reservadoAtual = depois;
+        }
+        await client.query(
+          'UPDATE carteiras SET saldo_reservado=saldo_reservado-$1,saldo_disponivel=saldo_disponivel+$2,updated_at=NOW() WHERE id=$3',
+          [totalReservado,premio,w.id]
+        );
+        if (premio > 0) {
+          await client.query(
+            "INSERT INTO lancamentos_carteira(carteira_id,usuario_id,tipo,valor,saldo_disponivel_antes,saldo_disponivel_depois,saldo_reservado_antes,saldo_reservado_depois,referencia_tipo,referencia_id,chave_idempotencia,descricao) VALUES($1,$2,'premio_credito',$3,$4,$5,$6,$6,'partida',$7,$8,'Prêmio do maior pontuador da partida; divisão somente em empate final')",
+            [w.id,uid,premio,disponivel,disponivel+premio,Number(w.saldo_reservado)-totalReservado,rodada.partida_id,'match-prize:'+rodada.partida_id+':'+uid]
+          );
+        }
+      } else if (premio > 0) {
+        const antes = Number(w.saldo_treino);
+        await client.query('UPDATE carteiras SET saldo_treino=saldo_treino+$1,updated_at=NOW() WHERE id=$2',[premio,w.id]);
+        await client.query(
+          "INSERT INTO lancamentos_treino(usuario_id,tipo,valor,saldo_antes,saldo_depois,referencia_id,chave_idempotencia,descricao) VALUES($1,'premio',$2,$3,$4,$5,$6,'Prêmio da partida de cinco rodadas; empate final dividido igualmente')",
+          [uid,premio,antes,antes+premio,rodada.partida_id,'treino:match-prize:'+rodada.partida_id+':'+uid]
+        );
+      }
+
+      await client.query(
+        "UPDATE apostas SET status=$1,premio_recebido=0 WHERE id=ANY($2::uuid[])",
+        [winners.has(uid)?'paga':'perdedora',userBets.map(b=>b.id)]
+      );
+      if (premio > 0) {
+        const lastBet = userBets[userBets.length-1];
+        await client.query('UPDATE apostas SET premio_recebido=$1 WHERE id=$2',[premio,lastBet.id]);
+      }
+    }
+
+    const resultadoFinal = {
+      ...partidaResult,
+      partidaId:rodada.partida_id,
+      numeroPartida:rodada.numero_partida,
+      numeroRodadas:5,
+      regra:'somente o maior pontuador recebe o prêmio; empate na pontuação final divide igualmente',
+      finalizadoEm:new Date().toISOString()
+    };
+    await client.query(
+      "UPDATE partidas SET status='finalizada',rodada_atual=5,pontuacao_final=$1::jsonb,ganhadores_finais=$2::jsonb,encerrada_em=NOW() WHERE id=$3",
+      [JSON.stringify(pontuacao),JSON.stringify(resultadoFinal),rodada.partida_id]
+    );
+    await client.query(
+      "UPDATE rodadas SET status=$1 WHERE partida_id=$2",
+      [partidaResult.winnerIds.length?'paga':'encerrada',rodada.partida_id]
+    );
     await client.query('COMMIT');
-    return {jogo:r.rows[0].codigo,apostas:apostas.rowCount,vencedoras:vencedoras.length,premioDistribuido:vencedoras.length>0,resultado:resultadoSalvo};
-  }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
+    return {
+      jogo:rodada.codigo,partida:rodada.partida_id,rodadas:5,
+      ganhadores:partidaResult.winnerIds.length,
+      ganhadorUnico:partidaResult.winnerIds.length===1,
+      empateFinal:partidaResult.tied,
+      pontos:partidaResult.points,
+      premioDistribuido:partidaResult.prizeAmount,
+      pagamentos:partidaResult.prizeShares,
+      resultado:resultadoFinal
+    };
+  } catch(e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
 }
 
 app.post('/api/admin/rodadas/:id/encerrar',async(req,res)=>{
@@ -540,14 +691,41 @@ app.get('/api/health',async(_req,res)=>{
 
 app.get('/', (_req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 app.use((err,_req,res,_next)=>{ console.error(err); res.status(500).json({erro:'Erro interno.'}); });
-pool.query('SELECT 1').then(()=>console.log('PostgreSQL/Neon conectado')).catch(e=>console.error('Falha Neon:',e.message));
+async function inicializarPartidas() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS partidas (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      jogo_id UUID NOT NULL REFERENCES jogos(id),
+      modo TEXT NOT NULL CHECK (modo IN ('treino','real')),
+      numero BIGINT NOT NULL,
+      total_rodadas SMALLINT NOT NULL DEFAULT 5 CHECK (total_rodadas=5),
+      rodada_atual SMALLINT NOT NULL DEFAULT 1 CHECK (rodada_atual BETWEEN 1 AND 5),
+      status TEXT NOT NULL DEFAULT 'aberta' CHECK (status IN ('aberta','finalizada','cancelada')),
+      premio_total NUMERIC(16,2) NOT NULL DEFAULT 0 CHECK (premio_total>=0),
+      pontuacao_final JSONB NOT NULL DEFAULT '{}'::jsonb,
+      ganhadores_finais JSONB NOT NULL DEFAULT '{}'::jsonb,
+      criada_em TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      encerrada_em TIMESTAMPTZ,
+      UNIQUE(jogo_id,modo,numero)
+    );
+    ALTER TABLE rodadas ADD COLUMN IF NOT EXISTS partida_id UUID REFERENCES partidas(id);
+    ALTER TABLE rodadas ADD COLUMN IF NOT EXISTS numero_na_partida SMALLINT;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_rodadas_partida_numero
+      ON rodadas(partida_id,numero_na_partida) WHERE partida_id IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_partidas_jogo_status
+      ON partidas(jogo_id,modo,status);
+  `);
+  await pool.query('SELECT 1');
+  console.log('PostgreSQL/Neon conectado; partidas de cinco rodadas prontas.');
+}
+
 const DURACAO_RODADA_SEGUNDOS=Math.max(15,Number(process.env.DURACAO_RODADA_SEGUNDOS||30));
 setInterval(async()=>{
   try{
-    const expiradas=await pool.query("SELECT r.id FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.status='aberta' AND r.inicio_em < NOW()-($1 * INTERVAL '1 second') AND (j.codigo<>'sinuca' OR r.resultado->>'status'='finished') AND EXISTS(SELECT 1 FROM apostas a WHERE a.rodada_id=r.id AND a.status='reservada') ORDER BY r.inicio_em LIMIT 20",[DURACAO_RODADA_SEGUNDOS]);
+    const expiradas=await pool.query("SELECT r.id FROM rodadas r JOIN jogos j ON j.id=r.jogo_id WHERE r.status='aberta' AND r.inicio_em < NOW()-($1 * INTERVAL '1 second') AND (j.codigo<>'sinuca' OR r.resultado->>'status'='finished' OR NOT EXISTS(SELECT 1 FROM apostas sx WHERE sx.rodada_id=r.id AND sx.status='reservada')) ORDER BY r.inicio_em LIMIT 20",[DURACAO_RODADA_SEGUNDOS]);
     for(const rodada of expiradas.rows){
       try{await liquidarRodadaPorId(rodada.id);}catch(e){console.error('Liquidação automática:',rodada.id,e.message);}
     }
   }catch(e){console.error('Agendador de rodadas:',e.message);}
 },5000).unref();
-app.listen(PORT,()=>console.log('BrasVegas API iniciado na porta '+PORT));
+ inicializarPartidas().then(()=>app.listen(PORT,()=>console.log('BrasVegas API iniciado na porta '+PORT))).catch(e=>{console.error('Falha ao preparar banco:',e);process.exit(1);});
